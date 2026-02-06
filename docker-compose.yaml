@@ -1,0 +1,90 @@
+# ===========================================
+# Bluebox Docker Compose
+# ===========================================
+# A sample PostgreSQL database with realistic, continuously-updating data
+#
+# Quick start:
+#   docker-compose up -d
+#
+# Use a different PostgreSQL version:
+#   PG_VERSION=16 docker-compose up -d
+#
+# Use a different port:
+#   PG_PORT=5433 docker-compose up -d
+#
+# Combine options:
+#   PG_VERSION=16 PG_PORT=5433 docker-compose up -d
+#
+# Connections:
+#   Admin:  psql -h localhost -p <port> -U bb_admin -d bluebox  (password: admin_password)
+#   App:    psql -h localhost -p <port> -U bb_app -d bluebox    (password: app_password)
+#   Super:  psql -h localhost -p <port> -U postgres -d bluebox  (password: password)
+
+services:
+  postgres:
+    image: bluebox-${PG_VERSION:-18}:latest
+    #image: ghcr.io/ryanbooz/bluebox-postgres:${PG_VERSION:-18}
+    # Or build locally:
+    # build:
+    #   context: .
+    #   args:
+    #     PG_SERVER_VERSION: ${PG_VERSION:-18}
+    container_name: bluebox-${PG_VERSION:-18}
+    environment:
+      # Superuser (for pg_cron, emergencies only)
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      PGDATA: /var/lib/postgresql/data
+      PGUSER: postgres
+      # These are created by init scripts:
+      # bb_admin / admin_password  - schema owner, DDL
+      # bb_app / app_password      - application queries, DML
+    shm_size: '1gb'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${PG_PORT:-5432}:5432"
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements,auto_explain,pg_cron"
+      - "-c"
+      - "cron.database_name=postgres"
+      - "-c"
+      - "shared_buffers=2GB"
+      - "-c"
+      - "effective_cache_size=6GB"
+      - "-c"
+      - "maintenance_work_mem=1GB"
+      - "-c"
+      - "work_mem=8MB"
+      - "-c"
+      - "max_parallel_workers_per_gather=2"
+      - "-c"
+      - "auto_explain.log_min_duration=500ms"
+      - "-c"
+      - "auto_explain.log_analyze=on"
+      - "-c"
+      - "auto_explain.log_verbose=on"
+      - "-c"
+      - "auto_explain.log_buffers=on"
+      - "-c"
+      - "auto_explain.log_timing=on"
+      - "-c"
+      - "auto_explain.log_triggers=on"
+      - "-c"
+      - "auto_explain.log_nested_statements=on"
+      - "-c"
+      - "auto_explain.log_format=json"
+      - "-c"
+      - "pg_stat_statements.max=5000"
+      - "-c"
+      - "pg_stat_statements.track=all"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bluebox"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+    name: bluebox-pgdata-${PG_VERSION:-18}

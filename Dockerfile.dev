@@ -1,0 +1,159 @@
+# Bluebox PostgreSQL Development Image
+# Builds PostgreSQL from the master branch for testing upcoming features
+#
+# WARNING: This is for development/testing only. Not for production use.
+
+FROM debian:bookworm-slim AS builder
+
+# Build arguments
+ARG PG_BRANCH=master
+ARG POSTGIS_VERSION=3.5.0
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    curl \
+    git \
+    libreadline-dev \
+    zlib1g-dev \
+    flex \
+    bison \
+    libxml2-dev \
+    libxml2-utils \
+    libxslt-dev \
+    libssl-dev \
+    libkrb5-dev \
+    liblz4-dev \
+    libzstd-dev \
+    libicu-dev \
+    pkg-config \
+    python3 \
+    python3-dev \
+    uuid-dev \
+    # PostGIS build dependencies (for autogen.sh)
+    autoconf \
+    automake \
+    libtool \
+    # PostGIS runtime dependencies
+    libgeos-dev \
+    libproj-dev \
+    libgdal-dev \
+    libjson-c-dev \
+    libprotobuf-c-dev \
+    protobuf-c-compiler \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone and build PostgreSQL from source
+WORKDIR /build
+RUN git clone --depth 1 --branch ${PG_BRANCH} https://git.postgresql.org/git/postgresql.git postgresql-src
+
+WORKDIR /build/postgresql-src
+
+# Configure and build PostgreSQL
+RUN ./configure \
+    --prefix=/usr/local/pgsql \
+    --with-openssl \
+    --with-libxml \
+    --with-libxslt \
+    --with-icu \
+    --with-python \
+    --with-uuid=e2fs \
+    --with-lz4 \
+    --with-zstd \
+    --enable-debug \
+    && make -j$(nproc) \
+    && make install
+# Note: Using 'make' instead of 'make world' to skip documentation build
+# This avoids network DTD dependencies and speeds up the build
+
+# Build contrib modules (includes pg_stat_statements, pg_prewarm, etc.)
+WORKDIR /build/postgresql-src/contrib
+RUN make -j$(nproc) && make install
+
+# Build PostGIS from master branch (for PostgreSQL master compatibility)
+# Release versions aren't compatible with PG 19 yet, but master might be
+WORKDIR /build
+RUN git clone --depth 1 --branch master https://git.osgeo.org/gitea/postgis/postgis.git postgis-master
+WORKDIR /build/postgis-master
+RUN ./autogen.sh \
+    && ./configure --with-pgconfig=/usr/local/pgsql/bin/pg_config \
+    && make -j$(nproc) \
+    && make install
+
+# Build pg_cron
+WORKDIR /build
+RUN git clone --depth 1 https://github.com/citusdata/pg_cron.git
+WORKDIR /build/pg_cron
+RUN make PG_CONFIG=/usr/local/pgsql/bin/pg_config \
+    && make install PG_CONFIG=/usr/local/pgsql/bin/pg_config
+
+# ============================================
+# Runtime image
+# ============================================
+FROM debian:bookworm-slim
+
+LABEL maintainer="Ryan Booz <ryan@softwareandbooz.com>"
+LABEL org.opencontainers.image.source="https://github.com/ryanbooz/bluebox-docker"
+LABEL org.opencontainers.image.description="Bluebox PostgreSQL Development Image (built from master)"
+
+# Install runtime dependencies
+# Using package name patterns to automatically get latest available versions
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libreadline8 \
+    zlib1g \
+    libxml2 \
+    libxslt1.1 \
+    libssl3* \
+    libkrb5-3 \
+    liblz4-1 \
+    libzstd1 \
+    libicu[0-9]* \
+    python3 \
+    libgeos-c1* \
+    libproj[0-9]* \
+    libgdal[0-9]* \
+    libjson-c5 \
+    libprotobuf-c1 \
+    gosu \
+    locales \
+    && rm -rf /var/lib/apt/lists/* \
+    && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
+
+ENV LANG en_US.utf8
+
+# Copy PostgreSQL from builder
+COPY --from=builder /usr/local/pgsql /usr/local/pgsql
+
+# Setup paths
+ENV PATH=/usr/local/pgsql/bin:$PATH
+ENV PGDATA=/var/lib/postgresql/data
+ENV PG_MAJOR=19
+
+# Create postgres user and directories
+RUN groupadd -r postgres --gid=999 \
+    && useradd -r -g postgres --uid=999 --home-dir=/var/lib/postgresql --shell=/bin/bash postgres \
+    && mkdir -p /var/lib/postgresql \
+    && mkdir -p /var/run/postgresql \
+    && mkdir -p "$PGDATA" \
+    && chown -R postgres:postgres /var/lib/postgresql \
+    && chown -R postgres:postgres /var/run/postgresql \
+    && chmod 2777 /var/run/postgresql
+
+# Configure PostgreSQL
+RUN echo "shared_preload_libraries='pg_stat_statements,pg_cron'" >> /usr/local/pgsql/share/postgresql.conf.sample \
+    && echo "cron.database_name='postgres'" >> /usr/local/pgsql/share/postgresql.conf.sample
+
+# Copy init scripts and entrypoint
+COPY init/ /docker-entrypoint-initdb.d/
+COPY scripts/ /usr/local/bin/
+COPY docker-entrypoint-dev.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/*.sh
+
+VOLUME /var/lib/postgresql
+
+EXPOSE 5432
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["postgres"]

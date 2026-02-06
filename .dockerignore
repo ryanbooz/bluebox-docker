@@ -1,0 +1,17 @@
+# Git
+.git
+.gitignore
+
+# GitHub
+.github
+
+# Documentation
+README.md
+LICENSE
+*.md
+
+# Development
+.env
+.env.*
+docker-compose*.yml
+!docker-compose.yaml
