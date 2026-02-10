@@ -1,5 +1,5 @@
 # Build and push Bluebox PostgreSQL images
-# - Multiple PostgreSQL versions (15, 16, 17, 18)
+# - Multiple PostgreSQL versions (14, 15, 16, 17, 18)
 # - Development version (19-dev from PostgreSQL master branch)
 # - Multiple architectures (amd64, arm64)
 name: Build and Push Docker Images
@@ -8,8 +8,20 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+      - 'docker-compose.yaml'
+      - 'scripts/**'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+      - 'docker-compose.yaml'
+      - 'scripts/**'
   schedule:
     # Rebuild dev image weekly (Sundays at 2am UTC)
     - cron: '0 2 * * 0'
@@ -27,6 +39,7 @@ on:
           - '17'
           - '16'
           - '15'
+          - '14'
           - '19-dev'
 
 env:
@@ -49,9 +62,9 @@ jobs:
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
             echo 'versions=["19-dev"]' >> $GITHUB_OUTPUT
           elif [[ "$INPUT" == "all" ]] || [[ -z "$INPUT" ]]; then
-            echo 'versions=["18", "17", "16", "15"]' >> $GITHUB_OUTPUT
+            echo 'versions=["18", "17", "16", "15", "14"]' >> $GITHUB_OUTPUT
           elif [[ "$INPUT" == "all-with-dev" ]]; then
-            echo 'versions=["18", "17", "16", "15", "19-dev"]' >> $GITHUB_OUTPUT
+            echo 'versions=["18", "17", "16", "15", "14", "19-dev"]' >> $GITHUB_OUTPUT
           else
             echo 'versions=["'"$INPUT"'"]' >> $GITHUB_OUTPUT
           fi
@@ -59,11 +72,13 @@ jobs:
   # Build stable versions (from official postgres base image)
   build-stable:
     needs: matrix-setup
+    # Skip if matrix only contains 19-dev
+    if: needs.matrix-setup.outputs.versions != '["19-dev"]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    
+
     strategy:
       fail-fast: false
       matrix:
@@ -175,6 +190,7 @@ jobs:
           echo "| 17 | stable | ${{ needs.build-stable.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 16 | stable | ${{ needs.build-stable.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 15 | stable | ${{ needs.build-stable.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 14 | stable | ${{ needs.build-stable.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 19-dev | development | ${{ needs.build-dev.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Available Images" >> $GITHUB_STEP_SUMMARY
@@ -183,6 +199,7 @@ jobs:
           echo "ghcr.io/${{ github.repository_owner }}/bluebox-postgres:17" >> $GITHUB_STEP_SUMMARY
           echo "ghcr.io/${{ github.repository_owner }}/bluebox-postgres:16" >> $GITHUB_STEP_SUMMARY
           echo "ghcr.io/${{ github.repository_owner }}/bluebox-postgres:15" >> $GITHUB_STEP_SUMMARY
+          echo "ghcr.io/${{ github.repository_owner }}/bluebox-postgres:14" >> $GITHUB_STEP_SUMMARY
           echo "ghcr.io/${{ github.repository_owner }}/bluebox-postgres:19-dev  # Development (from master)" >> $GITHUB_STEP_SUMMARY
           echo "ghcr.io/${{ github.repository_owner }}/bluebox-postgres:latest  # Same as :18" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

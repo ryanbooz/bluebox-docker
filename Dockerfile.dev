@@ -147,9 +147,8 @@ RUN echo "shared_preload_libraries='pg_stat_statements,pg_cron'" >> /usr/local/p
 
 # Copy init scripts and entrypoint
 COPY init/ /docker-entrypoint-initdb.d/
-COPY scripts/ /usr/local/bin/
 COPY docker-entrypoint-dev.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/*.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 VOLUME /var/lib/postgresql
 

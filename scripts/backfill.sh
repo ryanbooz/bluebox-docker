@@ -8,7 +8,7 @@
 set -e
 
 DB_NAME="${DB_NAME:-bluebox}"
-DB_USER="${DB_USER:-bb_admin}"
+DB_USER="${DB_USER:-postgres}"
 PGHOST="${PGHOST:-localhost}"
 PGPORT="${PGPORT:-5432}"
 

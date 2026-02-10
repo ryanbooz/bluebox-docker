@@ -12,7 +12,7 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 17.6 (Debian 17.6-1.pgdg12+1)
+-- Dumped from database version 17.7 (Debian 17.7-3.pgdg12+1)
 -- Dumped by pg_dump version 17.4
 
 SET statement_timeout = 0;
@@ -33,13 +33,6 @@ SET row_security = off;
 --
 
 CREATE SCHEMA IF NOT EXISTS bluebox;
-
-
---
--- Name: hint_plan; Type: SCHEMA; Schema: -; Owner: -
---
-
-CREATE SCHEMA IF NOT EXISTS hint_plan;
 
 
 --
@@ -65,33 +58,6 @@ COMMENT ON SCHEMA topology IS 'PostGIS Topology schema';
 -- Connect as a superuser to deal with extensions
 
 \c bluebox postgres
---
--- Name: hypopg; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS hypopg WITH SCHEMA bluebox;
-
-
---
--- Name: EXTENSION hypopg; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION hypopg IS 'Hypothetical indexes for PostgreSQL';
-
-
---
--- Name: pg_hint_plan; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS pg_hint_plan WITH SCHEMA hint_plan;
-
-
---
--- Name: EXTENSION pg_hint_plan; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION pg_hint_plan IS 'optimizer hints for PostgreSQL';
-
 
 --
 -- Name: pg_stat_statements; Type: EXTENSION; Schema: -; Owner: -
@@ -122,20 +88,6 @@ COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching
 
 
 --
--- Name: pgstattuple; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS pgstattuple WITH SCHEMA bluebox;
-
-
---
--- Name: EXTENSION pgstattuple; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION pgstattuple IS 'show tuple-level statistics';
-
-
---
 -- Name: postgis; Type: EXTENSION; Schema: -; Owner: -
 --
 
@@ -147,6 +99,7 @@ CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA public;
 --
 
 COMMENT ON EXTENSION postgis IS 'PostGIS geometry and geography spatial types and functions';
+
 
 -- switch back to the DDL admin for the database
 \c bluebox bb_admin
@@ -322,6 +275,8 @@ END;
 $$;
 
 
+
+
 --
 -- Name: PROCEDURE complete_rentals(IN p_min_rental_age interval, IN p_completion_pct numeric, IN p_skip_pct numeric, IN p_store_distance integer, IN p_min_duration interval, IN p_max_duration interval, IN p_print_debug boolean); Type: COMMENT; Schema: bluebox; Owner: -
 --
@@ -365,36 +320,6 @@ Examples:
   -- Clear backlog: complete all eligible rentals (skip none)
   CALL bluebox.complete_rentals(p_completion_pct := 100.0, p_skip_pct := 0);
 ';
-
-
---
--- Name: film_in_stock(integer, integer); Type: FUNCTION; Schema: bluebox; Owner: -
---
-
-CREATE FUNCTION bluebox.film_in_stock(p_film_id integer, p_store_id integer, OUT p_film_count integer) RETURNS SETOF integer
-    LANGUAGE sql
-    AS $_$
-     SELECT inventory_id
-     FROM inventory
-     WHERE film_id = $1
-     AND store_id = $2
-     AND inventory_in_stock(inventory_id);
-$_$;
-
-
---
--- Name: film_not_in_stock(integer, integer); Type: FUNCTION; Schema: bluebox; Owner: -
---
-
-CREATE FUNCTION bluebox.film_not_in_stock(p_film_id integer, p_store_id integer, OUT p_film_count integer) RETURNS SETOF integer
-    LANGUAGE sql
-    AS $_$
-    SELECT inventory_id
-    FROM inventory
-    WHERE film_id = $1
-    AND store_id = $2
-    AND NOT inventory_in_stock(inventory_id);
-$_$;
 
 
 --
@@ -784,40 +709,28 @@ $$;
 CREATE FUNCTION bluebox.get_customer_balance(p_customer_id integer, p_effective_date timestamp with time zone) RETURNS numeric
     LANGUAGE plpgsql
     AS $$
-       --#OK, WE NEED TO CALCULATE THE CURRENT BALANCE GIVEN A CUSTOMER_ID AND A DATE
-       --#THAT WE WANT THE BALANCE TO BE EFFECTIVE FOR. THE BALANCE IS:
-       --#   1) RENTAL FEES FOR ALL PREVIOUS RENTALS
-       --#   2) ONE DOLLAR FOR EVERY DAY THE PREVIOUS RENTALS ARE OVERDUE
-       --#   3) IF A FILM IS MORE THAN RENTAL_DURATION * 2 OVERDUE, CHARGE THE REPLACEMENT_COST
-       --#   4) SUBTRACT ALL PAYMENTS MADE BEFORE THE DATE SPECIFIED
 DECLARE
-    v_rentfees DECIMAL(5,2); --#FEES PAID TO RENT THE VIDEOS INITIALLY
-    v_overfees INTEGER;      --#LATE FEES FOR PRIOR RENTALS
-    v_payments DECIMAL(5,2); --#SUM OF PAYMENTS MADE PREVIOUSLY
+    v_rental_fees NUMERIC(10,2);  -- total amount owed from rentals
+    v_payments NUMERIC(10,2);     -- total payments made
 BEGIN
-    SELECT COALESCE(SUM(film.rental_rate),0) INTO v_rentfees
-    FROM film, inventory, rental
-    WHERE film.film_id = inventory.film_id
-      AND inventory.inventory_id = rental.inventory_id
-      AND rental.rental_date <= p_effective_date
-      AND rental.customer_id = p_customer_id;
+    -- Sum of rental fees (from payment records for rentals starting before effective date)
+    SELECT COALESCE(SUM(p.amount), 0) INTO v_rental_fees
+    FROM bluebox.rental r
+    JOIN bluebox.payment p ON r.rental_id = p.rental_id
+    WHERE r.customer_id = p_customer_id
+      AND lower(r.rental_period) <= p_effective_date;
 
-    SELECT COALESCE(SUM(IF((rental.return_date - rental.rental_date) > (film.rental_duration * '1 day'::interval),
-        ((rental.return_date - rental.rental_date) - (film.rental_duration * '1 day'::interval)),0)),0) INTO v_overfees
-    FROM rental, inventory, film
-    WHERE film.film_id = inventory.film_id
-      AND inventory.inventory_id = rental.inventory_id
-      AND rental.rental_date <= p_effective_date
-      AND rental.customer_id = p_customer_id;
+    -- Sum of payments made before effective date
+    SELECT COALESCE(SUM(amount), 0) INTO v_payments
+    FROM bluebox.payment
+    WHERE customer_id = p_customer_id
+      AND payment_date <= p_effective_date;
 
-    SELECT COALESCE(SUM(payment.amount),0) INTO v_payments
-    FROM payment
-    WHERE payment.payment_date <= p_effective_date
-    AND payment.customer_id = p_customer_id;
-
-    RETURN v_rentfees + v_overfees - v_payments;
-END
-$$;
+    -- In your current model, payment is created when rental ends,
+    -- so balance should typically be 0. But this preserves the 
+    -- "what did they owe as of date X" logic.
+    RETURN v_rental_fees - v_payments;
+END $$;
 
 
 --
@@ -1068,8 +981,9 @@ BEGIN
         FROM bluebox.rental r
         INNER JOIN bluebox.inventory i USING(inventory_id)
         LEFT JOIN bluebox.payment p ON r.rental_id = p.rental_id
-        WHERE lower(rental_period) >= rd 
-          AND lower(rental_period) <= rd + '5 days'::INTERVAL
+        WHERE upper(rental_period) IS NOT NULL
+          AND lower(rental_period) >= rd - '1 days'::INTERVAL
+          AND lower(rental_period) <= rd + '1 days'::INTERVAL
           AND p.rental_id IS NULL 
     )
     INSERT INTO bluebox.payment (customer_id, rental_id, amount, payment_date)
@@ -1084,66 +998,11 @@ $$;
 
 
 --
--- Name: inventory_held_by_customer(integer); Type: FUNCTION; Schema: bluebox; Owner: -
---
-
-CREATE FUNCTION bluebox.inventory_held_by_customer(p_inventory_id integer) RETURNS integer
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-    v_customer_id INTEGER;
-BEGIN
-
-  SELECT customer_id INTO v_customer_id
-  FROM rental
-  WHERE return_date IS NULL
-  AND inventory_id = p_inventory_id;
-
-  RETURN v_customer_id;
-END $$;
-
-
---
--- Name: inventory_in_stock(integer); Type: FUNCTION; Schema: bluebox; Owner: -
---
-
-CREATE FUNCTION bluebox.inventory_in_stock(p_inventory_id integer) RETURNS boolean
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-    v_rentals INTEGER;
-    v_out     INTEGER;
-BEGIN
-    -- AN ITEM IS IN-STOCK IF THERE ARE EITHER NO ROWS IN THE rental TABLE
-    -- FOR THE ITEM OR ALL ROWS HAVE return_date POPULATED
-
-    SELECT count(*) INTO v_rentals
-    FROM rental
-    WHERE inventory_id = p_inventory_id;
-
-    IF v_rentals = 0 THEN
-      RETURN TRUE;
-    END IF;
-
-    SELECT COUNT(rental_id) INTO v_out
-    FROM inventory LEFT JOIN rental USING(inventory_id)
-    WHERE inventory.inventory_id = p_inventory_id
-    AND upper(rental.rental_period) IS NULL;
-
-    IF v_out > 0 THEN
-      RETURN FALSE;
-    ELSE
-      RETURN TRUE;
-    END IF;
-END $$;
-
-
---
 -- Name: last_day(timestamp with time zone); Type: FUNCTION; Schema: bluebox; Owner: -
 --
 
 CREATE FUNCTION bluebox.last_day(timestamp with time zone) RETURNS date
-    LANGUAGE sql IMMUTABLE STRICT
+    LANGUAGE sql IMMUTABLE
     AS $_$
   SELECT CASE
     WHEN EXTRACT(MONTH FROM $1) = 12 THEN
@@ -1696,6 +1555,24 @@ $$;
 
 
 --
+-- Name: protect_circulation_start(); Type: FUNCTION; Schema: bluebox; Owner: -
+--
+
+CREATE FUNCTION bluebox.protect_circulation_start() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF OLD.circulation_start IS DISTINCT FROM NEW.circulation_start THEN
+        RAISE WARNING 'circulation_start is immutable and cannot be changed (inventory_id: %). Keeping original value: %', 
+            OLD.inventory_id, OLD.circulation_start;
+        NEW.circulation_start := OLD.circulation_start;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+
+--
 -- Name: random_between(numeric, numeric, integer); Type: FUNCTION; Schema: bluebox; Owner: -
 --
 
@@ -1939,107 +1816,6 @@ $_$;
 
 
 --
--- Name: film_in_stock(integer, integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.film_in_stock(p_film_id integer, p_store_id integer, OUT p_film_count integer) RETURNS SETOF integer
-    LANGUAGE sql
-    AS $$
-    SELECT inventory_id
-    FROM bluebox.inventory
-    WHERE film_id = p_film_id
-      AND store_id = p_store_id
-      AND inventory_in_stock(inventory_id);
-$$;
-
-
---
--- Name: film_not_in_stock(integer, integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.film_not_in_stock(p_film_id integer, p_store_id integer, OUT p_film_count integer) RETURNS SETOF integer
-    LANGUAGE sql
-    AS $$
-    SELECT inventory_id
-    FROM bluebox.inventory
-    WHERE film_id = p_film_id
-      AND store_id = p_store_id
-      AND NOT inventory_in_stock(inventory_id);
-$$;
-
-
---
--- Name: get_customer_balance(integer, timestamp with time zone); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.get_customer_balance(p_customer_id integer, p_effective_date timestamp with time zone) RETURNS numeric
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-    v_rental_fees NUMERIC(10,2);  -- total amount owed from rentals
-    v_payments NUMERIC(10,2);     -- total payments made
-BEGIN
-    -- Sum of rental fees (from payment records for rentals starting before effective date)
-    SELECT COALESCE(SUM(p.amount), 0) INTO v_rental_fees
-    FROM bluebox.rental r
-    JOIN bluebox.payment p ON r.rental_id = p.rental_id
-    WHERE r.customer_id = p_customer_id
-      AND lower(r.rental_period) <= p_effective_date;
-
-    -- Sum of payments made before effective date
-    SELECT COALESCE(SUM(amount), 0) INTO v_payments
-    FROM bluebox.payment
-    WHERE customer_id = p_customer_id
-      AND payment_date <= p_effective_date;
-
-    -- In your current model, payment is created when rental ends,
-    -- so balance should typically be 0. But this preserves the 
-    -- "what did they owe as of date X" logic.
-    RETURN v_rental_fees - v_payments;
-END $$;
-
-
---
--- Name: inventory_held_by_customer(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.inventory_held_by_customer(p_inventory_id integer) RETURNS integer
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-    v_customer_id INTEGER;
-BEGIN
-    SELECT customer_id INTO v_customer_id
-    FROM bluebox.rental
-    WHERE inventory_id = p_inventory_id
-      AND (upper(rental_period) IS NULL OR rental_period @> now());
-
-    RETURN v_customer_id;
-END $$;
-
-
---
--- Name: inventory_in_stock(integer); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.inventory_in_stock(p_inventory_id integer) RETURNS boolean
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-    v_out INTEGER;
-BEGIN
-    -- An item is NOT in stock if there's an open rental (upper bound is NULL)
-    -- or if the current time falls within an active rental period
-    SELECT COUNT(rental_id) INTO v_out
-    FROM bluebox.rental
-    WHERE inventory_id = p_inventory_id
-      AND (upper(rental_period) IS NULL OR rental_period @> now());
-
-    RETURN v_out = 0;
-END $$;
-
-
---
 -- Name: transform_credits(); Type: PROCEDURE; Schema: staging; Owner: -
 --
 
@@ -2147,17 +1923,8 @@ CREATE TABLE bluebox.customer_status_log (
     status text NOT NULL,
     reason_code text NOT NULL,
     notes text,
-    rental_id bigint,
-    CONSTRAINT valid_reason CHECK ((reason_code = ANY (ARRAY['signup'::text, 'rental'::text, 'inactivity'::text, 'lost_item'::text, 'payment_cleared'::text, 'winback'::text, 'manual'::text]))),
-    CONSTRAINT valid_status CHECK ((status = ANY (ARRAY['active'::text, 'inactive'::text, 'suspended'::text])))
+    rental_id bigint
 );
-
-
---
--- Name: TABLE customer_status_log; Type: COMMENT; Schema: bluebox; Owner: -
---
-
-COMMENT ON TABLE bluebox.customer_status_log IS 'Tracks customer status changes for churn/retention analysis';
 
 
 --
@@ -2192,8 +1959,7 @@ CREATE TABLE bluebox.film (
     budget bigint,
     revenue bigint,
     runtime integer,
-    fulltext tsvector GENERATED ALWAYS AS (to_tsvector('english'::regconfig, ((COALESCE(title, ''::text) || ' '::text) || COALESCE(overview, ''::text)))) STORED,
-    replacement_cost numeric(5,2)
+    fulltext tsvector GENERATED ALWAYS AS (to_tsvector('english'::regconfig, ((COALESCE(title, ''::text) || ' '::text) || COALESCE(overview, ''::text)))) STORED
 );
 
 
@@ -2287,7 +2053,8 @@ CREATE TABLE bluebox.inventory (
     film_id integer NOT NULL,
     store_id integer NOT NULL,
     last_update timestamp with time zone DEFAULT now() NOT NULL,
-    status_id integer DEFAULT 1 NOT NULL
+    status_id integer DEFAULT 1 NOT NULL,
+    circulation_start timestamp with time zone DEFAULT now() NOT NULL
 )
 WITH (autovacuum_vacuum_scale_factor='.60', autovacuum_vacuum_threshold='100', autovacuum_analyze_scale_factor='.80');
 
@@ -2308,20 +2075,14 @@ CREATE TABLE bluebox.inventory_status (
 -- Name: inventory_status_status_id_seq; Type: SEQUENCE; Schema: bluebox; Owner: -
 --
 
-CREATE SEQUENCE bluebox.inventory_status_status_id_seq
-    AS integer
+ALTER TABLE bluebox.inventory_status ALTER COLUMN status_id ADD GENERATED BY DEFAULT AS IDENTITY (
+    SEQUENCE NAME bluebox.inventory_status_status_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
     NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: inventory_status_status_id_seq; Type: SEQUENCE OWNED BY; Schema: bluebox; Owner: -
---
-
-ALTER SEQUENCE bluebox.inventory_status_status_id_seq OWNED BY bluebox.inventory_status.status_id;
+    CACHE 1
+);
 
 
 --
@@ -2540,6 +2301,24 @@ CREATE TABLE bluebox.zip_code_info (
 
 
 --
+-- Name: flyway_schema_history; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.flyway_schema_history (
+    installed_rank integer NOT NULL,
+    version character varying(50),
+    description character varying(200) NOT NULL,
+    type character varying(20) NOT NULL,
+    script character varying(1000) NOT NULL,
+    checksum integer,
+    installed_by character varying(100) NOT NULL,
+    installed_on timestamp without time zone DEFAULT now() NOT NULL,
+    execution_time integer NOT NULL,
+    success boolean NOT NULL
+);
+
+
+--
 -- Name: film_cast; Type: TABLE; Schema: staging; Owner: -
 --
 
@@ -2610,13 +2389,6 @@ CREATE TABLE staging.release_date (
     film_id bigint,
     releases jsonb
 );
-
-
---
--- Name: inventory_status status_id; Type: DEFAULT; Schema: bluebox; Owner: -
---
-
-ALTER TABLE ONLY bluebox.inventory_status ALTER COLUMN status_id SET DEFAULT nextval('bluebox.inventory_status_status_id_seq'::regclass);
 
 
 --
@@ -2764,6 +2536,14 @@ ALTER TABLE ONLY bluebox.zip_code_info
 
 
 --
+-- Name: flyway_schema_history flyway_schema_history_pk; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.flyway_schema_history
+    ADD CONSTRAINT flyway_schema_history_pk PRIMARY KEY (installed_rank);
+
+
+--
 -- Name: film_cast film_cast_pk; Type: CONSTRAINT; Schema: staging; Owner: -
 --
 
@@ -2806,13 +2586,6 @@ CREATE INDEX film_fulltext_idx ON bluebox.film USING gin (fulltext);
 --
 
 CREATE INDEX film_person_id_film_id_idx ON bluebox.film_cast USING btree (person_id, film_id);
-
-
---
--- Name: film_release_date_popularity_idx; Type: INDEX; Schema: bluebox; Owner: -
---
-
-CREATE INDEX film_release_date_popularity_idx ON bluebox.film USING btree (release_date, popularity DESC);
 
 
 --
@@ -2893,13 +2666,6 @@ CREATE INDEX rental_inventory_id_idx ON bluebox.rental USING btree (inventory_id
 
 
 --
--- Name: rental_inventory_id_idx_nondedup; Type: INDEX; Schema: bluebox; Owner: -
---
-
-CREATE INDEX rental_inventory_id_idx_nondedup ON bluebox.rental USING btree (inventory_id) WITH (deduplicate_items=off);
-
-
---
 -- Name: rental_rental_period_idx; Type: INDEX; Schema: bluebox; Owner: -
 --
 
@@ -2921,17 +2687,17 @@ CREATE INDEX us_postal_code_geog_gix ON bluebox.zip_code_info USING gist (geog);
 
 
 --
--- Name: demo_cast_jsonb_ops; Type: INDEX; Schema: staging; Owner: -
+-- Name: flyway_schema_history_s_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX demo_cast_jsonb_ops ON staging.film_credits USING gin ("cast");
+CREATE INDEX flyway_schema_history_s_idx ON public.flyway_schema_history USING btree (success);
 
 
 --
--- Name: demo_cast_jsonb_path_ops; Type: INDEX; Schema: staging; Owner: -
+-- Name: inventory inventory_protect_circulation_start; Type: TRIGGER; Schema: bluebox; Owner: -
 --
 
-CREATE INDEX demo_cast_jsonb_path_ops ON staging.film_credits USING gin ("cast" jsonb_path_ops);
+CREATE TRIGGER inventory_protect_circulation_start BEFORE UPDATE ON bluebox.inventory FOR EACH ROW EXECUTE FUNCTION bluebox.protect_circulation_start();
 
 
 --

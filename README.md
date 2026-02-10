@@ -12,24 +12,58 @@ A PostgreSQL sample database simulating a video rental kiosk business (think Red
 - **Multi-architecture**: AMD64 and ARM64 (native Apple Silicon support)
 - **Pre-loaded extensions**: PostGIS, pg_stat_statements, hypopg, pgvector, TimescaleDB, and more
 
+## Overview
+The motivation for this "ready to go" Docker container is primarily testing and training. The schema will continue to undergo changes which can be tracked in the separate [Bluebox Schema repository](https://github.com/ryanbooz/bluebox).
+
+Once you have cloned this repository and started the container as described below, you'll have:
+
+- Postgres running at the latest patch version of your selected major version
+- Bluebox database populated with sample data including customers, films, inventory, stores, and staff
+- Rental history automatically backfilled from the last snapshot date through yesterday
+- Automated pg_cron jobs that generate new rentals and payments in real-time (see Automated Jobs below)
+- Three users: postgres (superuser), bb_admin (application user with schema ownership), bb_app (application user with DML privileges)
+
+The database simulates a video rental business with geographically distributed customers and stores across the United States. Rental activity varies by day, with increased volume on holidays.
+
 ## Quick Start
 
+The easiest way to get started is with the interactive startup script:
+
 ```bash
-# Start with PostgreSQL 18 (default)
-docker-compose up -d
-
-# Or specify a version
-PG_VERSION=16 docker-compose up -d
-
-# Connect as the application user
-psql -h localhost -U bb_app -d bluebox
-# Password: app_password
-
-# Check it's working
-SELECT count(*) FROM bluebox.rental WHERE upper(rental_period) IS NULL;
+./start.sh
 ```
 
-New rentals will start appearing within 5 minutes.
+This will prompt you for the Postgres version and port, then start the container.
+
+## Manual Setup
+
+If you prefer to run commands directly:
+
+```bash
+# Set your preferred version and port
+export PG_VERSION=18
+export PG_PORT=5432
+
+# Start the container (project name keeps instances separate)
+docker-compose -p bluebox-pg${PG_VERSION} up -d
+```
+
+## Running Multiple Versions
+
+You can run multiple Postgres versions simultaneously. Each needs a unique port and project name:
+
+```bash
+# Start Postgres 18 on default port
+PG_VERSION=18 PG_PORT=5432 docker-compose -p bluebox-pg18 up -d
+
+# Start Postgres 17 on the next available port
+PG_VERSION=17 PG_PORT=5433 docker-compose -p bluebox-pg17 up -d
+
+# Start the dev version on another port
+PG_VERSION=19-dev PG_PORT=5434 docker-compose -p bluebox-pg19-dev up -d
+```
+
+All containers will run independently with their own data volumes.
 
 ## Available Images
 
@@ -63,12 +97,13 @@ docker pull ghcr.io/ryanbooz/bluebox-postgres:19-dev
 
 ## Backfill Historical Data
 
-The seed data is current through a specific date. To fill the gap to today:
+When the initial container starts, it will backfill any days that do not have rental data from the last known rental until "yesterday". There are `pg_cron` jobs that create new rental data every 5 minutes starting with "now". As long as the container is running, you should continue to get new rental data every 5 minutes.
+
+However, there may be times where the container is shut down for multiple days and you'd like to get it "caught up" to today. 
+
+To fill the gap between the last rental and today, connect to the database with `psql` or your IDE of choice, and run the following:
 
 ```bash
-# Inside the container
-docker exec -it bluebox-18 backfill.sh
-
 # Or manually
 docker exec -it bluebox-18 psql -U bb_admin -d bluebox -c "
     CALL bluebox.generate_rental_history(
@@ -77,24 +112,6 @@ docker exec -it bluebox-18 psql -U bb_admin -d bluebox -c "
         p_print_debug := true
     );
 "
-```
-
-## Data Model
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│    film     │────<│  inventory  │>────│    store    │
-└─────────────┘     └─────────────┘     └─────────────┘
-                           │
-                           │
-┌─────────────┐     ┌──────▼──────┐     ┌─────────────┐
-│  customer   │────<│   rental    │>────│   payment   │
-└─────────────┘     └─────────────┘     └─────────────┘
-       │
-       ▼
-┌─────────────────────┐
-│ customer_status_log │
-└─────────────────────┘
 ```
 
 ## Automated Jobs (pg_cron)
@@ -209,17 +226,9 @@ docker build -t bluebox-postgres:18 .
 docker-compose build
 ```
 
-## Refreshing Data Dumps
-
-To generate new data dumps (for updating the image):
-
-```bash
-./scripts/generate-dumps.sh
-```
-
-This creates compressed dumps of the last 15 months of rental/payment data plus all reference data.
-
 ## Extensions Included
+The following extensions are included when available. Not all extensions are updated for development branches of Postgres
+or newly released stable versions.
 
 - PostGIS 3.x
 - pg_stat_statements

@@ -4,7 +4,7 @@
 
 # Data files (too large for git)
 # Keep compressed init files, but not uncompressed
-init/*.sql
+!init/*.sql
 !init/*.sql.gz
 init/*.csv
 !init/*.csv.gz

@@ -121,8 +121,4 @@ RUN echo "shared_preload_libraries='pg_stat_statements,auto_explain,pg_cron'" >>
 # Copy init scripts
 COPY init/ /docker-entrypoint-initdb.d/
 
-# Copy helper scripts
-COPY scripts/ /usr/local/bin/
-RUN chmod +x /usr/local/bin/*.sh
-
 EXPOSE ${PG_SERVER_PORT}

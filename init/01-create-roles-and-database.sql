@@ -33,6 +33,7 @@ CREATE ROLE bb_app WITH
     IN ROLE bluebox_app;
 COMMENT ON ROLE bb_app IS 'Login user for application queries';
 
+ALTER ROLE postgres SET search_path TO bluebox, public;
 ALTER ROLE bb_admin SET search_path TO bluebox, public;
 ALTER ROLE bb_app SET search_path TO bluebox, public;
 
@@ -75,5 +76,9 @@ ALTER DEFAULT PRIVILEGES FOR ROLE bluebox_admin IN SCHEMA bluebox
 
 -- Grant schema usage to app role
 GRANT USAGE ON SCHEMA bluebox TO bluebox_app;
+
+-- Grant extension usage to admin
+GRANT USAGE ON SCHEMA public TO bluebox_admin;
+GRANT USAGE ON SCHEMA public TO bluebox_app;
 
 \echo '=== Step 1 complete ==='

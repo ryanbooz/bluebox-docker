@@ -88,6 +88,7 @@ log_info "Step 3: Starting container..."
 docker run -d \
     --name ${CONTAINER_NAME} \
     -e POSTGRES_PASSWORD=password \
+    -p 5432:5432 \
     -v bluebox-pgdata-19-dev:/var/lib/postgresql/data \
     ${IMAGE_TAG} \
     postgres \
