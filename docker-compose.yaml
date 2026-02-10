@@ -22,8 +22,8 @@
 
 services:
   postgres:
-    image: bluebox-${PG_VERSION:-18}:latest
-    #image: ghcr.io/ryanbooz/bluebox-postgres:${PG_VERSION:-18}
+    #image: bluebox-${PG_VERSION:-18}:latest
+    image: ghcr.io/ryanbooz/bluebox-postgres:${PG_VERSION:-18}
     # Or build locally:
     # build:
     #   context: .
