@@ -80,10 +80,11 @@ services:
       - "-c"
       - "pg_stat_statements.track=all"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d bluebox"]
+      test: ["CMD-SHELL", "pg_isready -h localhost -U postgres -d bluebox"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
+      start_period: 5m
 
 volumes:
   pgdata:

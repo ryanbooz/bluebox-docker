@@ -85,7 +85,7 @@ fi
 # Wait for container to be healthy (init scripts complete + postgres accepting connections)
 wait_for_ready() {
     local container="$1"
-    local max_wait=180
+    local max_wait=360
     local waited=0
     echo -n "Waiting for database to be ready "
     while [ $waited -lt $max_wait ]; do
