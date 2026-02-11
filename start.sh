@@ -28,7 +28,7 @@ fi
 # Check if default port is in use and find an available one
 check_port() {
     if command -v lsof &> /dev/null; then
-        lsof -i :"$1" &> /dev/null && return 1 || return 0
+        lsof -iTCP:"$1" -sTCP:LISTEN &> /dev/null && return 1 || return 0
     elif command -v ss &> /dev/null; then
         ss -tuln | grep -q ":$1 " && return 1 || return 0
     elif command -v netstat &> /dev/null; then
