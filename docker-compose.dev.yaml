@@ -1,0 +1,22 @@
+# ===========================================
+# Bluebox Dev Override
+# ===========================================
+# Long-lived dev instance with its own volume, isolated from test workflows.
+#
+# Start:
+#   docker-compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d
+#
+# Stop (keeps data):
+#   docker-compose -f docker-compose.yaml -f docker-compose.dev.yaml down
+#
+# Update image and restart (keeps data):
+#   docker-compose -f docker-compose.yaml -f docker-compose.dev.yaml pull
+#   docker-compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d
+
+services:
+  postgres:
+    container_name: bluebox-dev
+
+volumes:
+  pgdata:
+    name: bluebox-pgdata-dev

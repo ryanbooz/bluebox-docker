@@ -65,6 +65,22 @@ To test the development image (PG 19 from source):
 
 Once the test passes, commit the updated files in `init/` and push. The GitHub Actions workflow builds multi-architecture images for PostgreSQL versions 14-18 and pushes them to GHCR.
 
+## Long-lived Dev Instance
+
+For day-to-day work, you can run a dev container that is completely isolated from test scripts. It uses a separate Docker volume (`bluebox-pgdata-dev`) that `test-build.sh` and `docker-compose down -v` won't touch.
+
+```bash
+./dev.sh up        # Start the dev container
+./dev.sh down      # Stop it (data is kept)
+./dev.sh update    # Pull latest image and restart (data is kept)
+./dev.sh psql      # Connect with psql as bb_admin
+./dev.sh logs      # Follow container logs
+./dev.sh status    # Show container status
+./dev.sh destroy   # Remove container AND volume (asks for confirmation)
+```
+
+This uses `docker-compose.dev.yaml` as an override on top of the main `docker-compose.yaml`, so all PostgreSQL settings (memory, extensions, auto_explain, etc.) stay in sync.
+
 ## Other Scripts
 
 - **`scripts/backfill.sh`** - Fills gaps in rental data on a live Bluebox instance. Useful if the database has been idle and you need to generate history before re-dumping. Supports the same `PGHOST`/`PGPORT`/`DB_NAME`/`DB_USER` environment variables.

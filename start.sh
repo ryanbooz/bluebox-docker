@@ -82,13 +82,49 @@ if docker-compose -p "$PROJECT_NAME" ps --status running 2>/dev/null | grep -q "
     docker-compose -p "$PROJECT_NAME" down
 fi
 
+# Wait for container to be healthy (init scripts complete + postgres accepting connections)
+wait_for_ready() {
+    local container="$1"
+    local max_wait=180
+    local waited=0
+    echo -n "Waiting for database to be ready "
+    while [ $waited -lt $max_wait ]; do
+        status=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "starting")
+        case "$status" in
+            healthy)
+                echo ""
+                echo "Database is ready! (${waited}s)"
+                return 0
+                ;;
+            unhealthy)
+                echo ""
+                echo "Error: Container health check failed. Check logs:"
+                echo "  docker-compose -p ${PROJECT_NAME} logs -f"
+                return 1
+                ;;
+            *)
+                echo -n "."
+                sleep 3
+                waited=$((waited + 3))
+                ;;
+        esac
+    done
+    echo ""
+    echo "Still initializing after ${max_wait}s. Check progress:"
+    echo "  docker-compose -p ${PROJECT_NAME} logs -f"
+    return 1
+}
+
 # Start the container
 echo "Starting ${PROJECT_NAME}..."
 PG_VERSION="$PG_VERSION" PG_PORT="$PG_PORT" docker-compose -p "$PROJECT_NAME" up -d
 
+CONTAINER_NAME="bluebox-${PG_VERSION}"
+wait_for_ready "$CONTAINER_NAME"
+
 echo
 echo "========================================"
-echo "Container started successfully!"
+echo "Container is ready!"
 echo "========================================"
 echo
 echo "Connect with:"
