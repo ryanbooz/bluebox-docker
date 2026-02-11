@@ -115,7 +115,10 @@ wait_for_ready() {
     return 1
 }
 
-# Start the container
+# Pull latest image and start the container
+echo "Checking for image updates..."
+PG_VERSION="$PG_VERSION" docker-compose -p "$PROJECT_NAME" pull
+
 echo "Starting ${PROJECT_NAME}..."
 PG_VERSION="$PG_VERSION" PG_PORT="$PG_PORT" docker-compose -p "$PROJECT_NAME" up -d
 
