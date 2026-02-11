@@ -94,8 +94,8 @@ docker run -d \
     postgres \
     -c shared_preload_libraries='pg_stat_statements,pg_cron' \
     -c cron.database_name=postgres \
-    -c max_wal_size='2GB' \
-    -c min_wal_size='512MB' \
+    -c max_wal_size='4GB' \
+    -c min_wal_size='1GB' \
     -c checkpoint_timeout='15min' \
     -c checkpoint_completion_target=0.9
 

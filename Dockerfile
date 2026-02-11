@@ -114,8 +114,8 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
 # Configure PostgreSQL defaults
 RUN echo "shared_preload_libraries='pg_stat_statements,auto_explain,pg_cron'" >> /usr/share/postgresql/postgresql.conf.sample \
     && echo "cron.database_name='postgres'" >> /usr/share/postgresql/postgresql.conf.sample \
-    && echo "max_wal_size='2GB'" >> /usr/share/postgresql/postgresql.conf.sample \
-    && echo "min_wal_size='512MB'" >> /usr/share/postgresql/postgresql.conf.sample \
+    && echo "max_wal_size='4GB'" >> /usr/share/postgresql/postgresql.conf.sample \
+    && echo "min_wal_size='1GB'" >> /usr/share/postgresql/postgresql.conf.sample \
     && echo "checkpoint_timeout='15min'" >> /usr/share/postgresql/postgresql.conf.sample \
     && echo "checkpoint_completion_target=0.9" >> /usr/share/postgresql/postgresql.conf.sample
 
