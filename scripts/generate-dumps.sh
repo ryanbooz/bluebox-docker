@@ -20,7 +20,7 @@ CUTOFF_DATE=$(date -d "15 months ago" +%Y-%m-%d 2>/dev/null || \
 # Helper: prepend database connection and fix PG 17+ compatibility
 # Used for pg_dump data files that need \c and transaction_timeout patched
 fix_dump() {
-    printf '%s\n\n' '\c bluebox bb_admin'
+    printf '%s\n\n' '\c bluebox bluebox_admin'
     awk '{
         if ($0 == "SET transaction_timeout = 0;") {
             print "-- transaction_timeout is a PG 17+ parameter and not necessary for init scripts"
@@ -41,7 +41,7 @@ mkdir -p "$OUTPUT_DIR"
 # 03 - Schema (structure only, no privileges/ownership)
 echo "Dumping schema..."
 {
-    printf '%s\n' '\c bluebox bb_admin'
+    printf '%s\n' '\c bluebox bluebox_admin'
     printf '\n%s\n\n' "\\echo '=== Creating schema ==='"
     pg_dump -h "$PGHOST" -p "$PGPORT" -U "$DB_USER" -d "$DB_NAME" \
         --schema-only -x -O

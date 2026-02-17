@@ -2,9 +2,11 @@
 -- Bluebox Database Initialization
 -- Step 3: Create schema and objects
 -- ===========================================
--- Run as bb_admin (schema owner)
+-- Run as bluebox_admin (schema owner)
+--   The DEFAULT privileges set in Step 1 ensure all objects are
+--   owned by bluebox_admin and accessible to bluebox_app
 
-\c bluebox bb_admin
+\c bluebox bluebox_admin
 
 \echo '=== Creating schema ==='
 
@@ -102,7 +104,7 @@ COMMENT ON EXTENSION postgis IS 'PostGIS geometry and geography spatial types an
 
 
 -- switch back to the DDL admin for the database
-\c bluebox bb_admin
+\c bluebox bluebox_admin
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;

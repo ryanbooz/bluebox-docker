@@ -47,7 +47,7 @@ for file in "${DATA_FILES[@]}"; do
     if ! grep -q '\\c bluebox' "${uncompressed}"; then
         # Create temp file with connection command at the top
         tmp_file="${uncompressed}.tmp"
-        printf '%s\n\n' '\c bluebox bb_admin' > "${tmp_file}"
+        printf '%s\n\n' '\c bluebox bluebox_admin' > "${tmp_file}"
         cat "${uncompressed}" >> "${tmp_file}"
         mv "${tmp_file}" "${uncompressed}"
         connection_added=true
@@ -87,7 +87,7 @@ echo ""
 echo "=== Fix complete ==="
 echo ""
 echo "Fixes applied:"
-echo "  1. Added \\c bluebox bb_admin (database connection)"
+echo "  1. Added \\c bluebox bluebox_admin (database connection)"
 echo "  2. Commented out transaction_timeout (PG 17+ compatibility)"
 echo ""
 echo "Modified files:"
