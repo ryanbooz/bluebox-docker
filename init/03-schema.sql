@@ -5,8 +5,7 @@
 -- Run as bluebox_admin (schema owner)
 --   The DEFAULT privileges set in Step 1 ensure all objects are
 --   owned by bluebox_admin and accessible to bluebox_app
-
-\c bluebox bluebox_admin
+\c bluebox postgres
 
 \echo '=== Creating schema ==='
 
@@ -29,6 +28,12 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
+
+-- Set the role to bluebox_admin for schema and object creation
+-- This ensures all objects are owned by bluebox_admin and all of 
+-- the necessary permissions are applied for bluebox_app through default privileges.
+SET ROLE bluebox_admin;
+
 
 --
 -- Name: bluebox; Type: SCHEMA; Schema: -; Owner: -
@@ -59,7 +64,7 @@ COMMENT ON SCHEMA topology IS 'PostGIS Topology schema';
 
 -- Connect as a superuser to deal with extensions
 
-\c bluebox postgres
+SET ROLE postgres;
 
 --
 -- Name: pg_stat_statements; Type: EXTENSION; Schema: -; Owner: -
@@ -103,9 +108,6 @@ CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA public;
 COMMENT ON EXTENSION postgis IS 'PostGIS geometry and geography spatial types and functions';
 
 
--- switch back to the DDL admin for the database
-\c bluebox bluebox_admin
-
 SET statement_timeout = 0;
 SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
@@ -118,6 +120,12 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
+
+
+-- Set the role to bluebox_admin for schema and object creation
+-- This ensures all objects are owned by bluebox_admin and all of 
+-- the necessary permissions are applied for bluebox_app through default privileges.
+SET ROLE bluebox_admin;
 
 --
 -- Name: mpaa_rating; Type: TYPE; Schema: public; Owner: -
