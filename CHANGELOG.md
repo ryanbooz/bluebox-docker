@@ -15,13 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `test-build.sh` automatically uses the locally built image via `BLUEBOX_IMAGE`
-  env var (no more forgetting to switch docker-compose.yaml)
+  env var (no more forgetting to switch `docker-compose.yaml`)
 - `generate-dumps.sh` auto-injects `SET ROLE` statements into the schema dump
   for correct object ownership
 - `start.sh` shows init script progress during startup instead of only dots
 - `test-build.sh` shows init script progress during data load verification
 - `docker-compose.yaml` image is now configurable via `BLUEBOX_IMAGE` env var
   (defaults to `ghcr.io/ryanbooz/bluebox-postgres`, no change for existing users)
+- Updated all scripts and documentation to use `docker compose` (Compose V2)
+  instead of the deprecated `docker-compose` (Compose V1)
 
 ## [1.0.0] - 2026-02-10
 

@@ -6,7 +6,7 @@
 
 set -e
 
-COMPOSE_CMD="docker-compose -f docker-compose.yaml -f docker-compose.dev.yaml"
+COMPOSE_CMD="docker compose -f docker-compose.yaml -f docker-compose.dev.yaml"
 CONTAINER_NAME="bluebox-dev"
 MAX_WAIT=360  # First init with data loading can take several minutes
 

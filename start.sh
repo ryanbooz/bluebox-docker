@@ -72,14 +72,14 @@ echo "----------------------------------------"
 echo
 
 # Check if this project is already running
-if docker-compose -p "$PROJECT_NAME" ps --status running 2>/dev/null | grep -q "bluebox"; then
+if docker compose -p "$PROJECT_NAME" ps --status running 2>/dev/null | grep -q "bluebox"; then
     echo "Warning: ${PROJECT_NAME} appears to already be running."
     read -p "Stop and recreate it? [y/N]: " RECREATE
     if [[ ! "$RECREATE" =~ ^[Yy]$ ]]; then
         echo "Aborted."
         exit 0
     fi
-    docker-compose -p "$PROJECT_NAME" down
+    docker compose -p "$PROJECT_NAME" down
 fi
 
 # Wait for container to be healthy (init scripts complete + postgres accepting connections)
@@ -116,7 +116,7 @@ wait_for_ready() {
             unhealthy)
                 echo ""
                 echo "Error: Container health check failed. Check logs:"
-                echo "  docker-compose -p ${PROJECT_NAME} logs -f"
+                echo "  docker compose -p ${PROJECT_NAME} logs -f"
                 return 1
                 ;;
             *)
@@ -127,16 +127,16 @@ wait_for_ready() {
     done
     echo ""
     echo "Still initializing after ${max_wait}s. Check progress:"
-    echo "  docker-compose -p ${PROJECT_NAME} logs -f"
+    echo "  docker compose -p ${PROJECT_NAME} logs -f"
     return 1
 }
 
 # Pull latest image and start the container
 echo "Checking for image updates..."
-PG_VERSION="$PG_VERSION" docker-compose -p "$PROJECT_NAME" pull
+PG_VERSION="$PG_VERSION" docker compose -p "$PROJECT_NAME" pull
 
 echo "Starting ${PROJECT_NAME}..."
-PG_VERSION="$PG_VERSION" PG_PORT="$PG_PORT" docker-compose -p "$PROJECT_NAME" up -d
+PG_VERSION="$PG_VERSION" PG_PORT="$PG_PORT" docker compose -p "$PROJECT_NAME" up -d
 
 CONTAINER_NAME="bluebox-${PG_VERSION}"
 wait_for_ready "$CONTAINER_NAME"
@@ -150,8 +150,8 @@ echo "Connect with:"
 echo "  psql -h localhost -p ${PG_PORT} -U bb_admin -d bluebox"
 echo
 echo "Stop with:"
-echo "  docker-compose -p ${PROJECT_NAME} down"
+echo "  docker compose -p ${PROJECT_NAME} down"
 echo
 echo "View logs:"
-echo "  docker-compose -p ${PROJECT_NAME} logs -f"
+echo "  docker compose -p ${PROJECT_NAME} logs -f"
 echo

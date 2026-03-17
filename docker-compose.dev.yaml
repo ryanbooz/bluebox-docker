@@ -4,14 +4,14 @@
 # Long-lived dev instance with its own volume, isolated from test workflows.
 #
 # Start:
-#   docker-compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d
+#   docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d
 #
 # Stop (keeps data):
-#   docker-compose -f docker-compose.yaml -f docker-compose.dev.yaml down
+#   docker compose -f docker-compose.yaml -f docker-compose.dev.yaml down
 #
 # Update image and restart (keeps data):
-#   docker-compose -f docker-compose.yaml -f docker-compose.dev.yaml pull
-#   docker-compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d
+#   docker compose -f docker-compose.yaml -f docker-compose.dev.yaml pull
+#   docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up -d
 
 services:
   postgres:

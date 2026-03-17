@@ -45,7 +45,7 @@ export PG_VERSION=18
 export PG_PORT=5432
 
 # Start the container (project name keeps instances separate)
-docker-compose -p bluebox-pg${PG_VERSION} up -d
+docker compose -p bluebox-pg${PG_VERSION} up -d
 ```
 
 ## Running Multiple Versions
@@ -54,13 +54,13 @@ You can run multiple Postgres versions simultaneously. Each needs a unique port 
 
 ```bash
 # Start Postgres 18 on default port
-PG_VERSION=18 PG_PORT=5432 docker-compose -p bluebox-pg18 up -d
+PG_VERSION=18 PG_PORT=5432 docker compose -p bluebox-pg18 up -d
 
 # Start Postgres 17 on the next available port
-PG_VERSION=17 PG_PORT=5433 docker-compose -p bluebox-pg17 up -d
+PG_VERSION=17 PG_PORT=5433 docker compose -p bluebox-pg17 up -d
 
 # Start the dev version on another port
-PG_VERSION=19-dev PG_PORT=5434 docker-compose -p bluebox-pg19-dev up -d
+PG_VERSION=19-dev PG_PORT=5434 docker compose -p bluebox-pg19-dev up -d
 ```
 
 All containers will run independently with their own data volumes.
@@ -223,8 +223,8 @@ GROUP BY 1 ORDER BY 1;
 # Build the image
 docker build -t bluebox-postgres:18 .
 
-# Or with docker-compose
-docker-compose build
+# Or with docker compose
+docker compose build
 ```
 
 ## Extensions Included

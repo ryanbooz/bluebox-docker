@@ -67,7 +67,7 @@ Once the test passes, commit the updated files in `init/` and push. The GitHub A
 
 ## Long-lived Dev Instance
 
-For day-to-day work, you can run a dev container that is completely isolated from test scripts. It uses a separate Docker volume (`bluebox-pgdata-dev`) that `test-build.sh` and `docker-compose down -v` won't touch.
+For day-to-day work, you can run a dev container that is completely isolated from test scripts. It uses a separate Docker volume (`bluebox-pgdata-dev`) that `test-build.sh` and `docker compose down -v` won't touch.
 
 ```bash
 ./dev.sh up        # Start the dev container

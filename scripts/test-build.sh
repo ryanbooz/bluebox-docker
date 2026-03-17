@@ -35,7 +35,7 @@ log_warning() {
 
 cleanup() {
     log_info "Cleaning up test environment..."
-    docker-compose down -v > /dev/null 2>&1 || true
+    docker compose down -v > /dev/null 2>&1 || true
     log_success "Cleanup complete"
 }
 
@@ -50,7 +50,7 @@ echo ""
 
 # Step 1: Clean up any existing containers
 log_info "Step 1: Cleaning up existing containers..."
-docker-compose down -v > /dev/null 2>&1 || true
+docker compose down -v > /dev/null 2>&1 || true
 log_success "Cleanup complete"
 echo ""
 
@@ -81,7 +81,7 @@ echo ""
 
 # Step 3: Start the container using the locally built image
 log_info "Step 3: Starting container..."
-BLUEBOX_IMAGE=bluebox docker-compose up -d
+BLUEBOX_IMAGE=bluebox docker compose up -d
 log_success "Container started"
 echo ""
 
@@ -100,7 +100,7 @@ done
 
 if [ $SECONDS_WAITED -ge $MAX_WAIT ]; then
     log_error "PostgreSQL failed to start within ${MAX_WAIT} seconds"
-    docker-compose logs --tail=50
+    docker compose logs --tail=50
     exit 1
 fi
 echo ""
@@ -129,8 +129,8 @@ while [ $INIT_SECONDS_WAITED -lt $MAX_INIT_WAIT ]; do
     done
 
     # Check for both CSV load messages
-    RENTAL_LOG=$(docker-compose logs 2>&1 | grep "Loaded .* rental records from CSV" || echo "")
-    PAYMENT_LOG=$(docker-compose logs 2>&1 | grep "Loaded .* payment records from CSV" || echo "")
+    RENTAL_LOG=$(docker compose logs 2>&1 | grep "Loaded .* rental records from CSV" || echo "")
+    PAYMENT_LOG=$(docker compose logs 2>&1 | grep "Loaded .* payment records from CSV" || echo "")
 
     # If both found, we're done!
     if [ -n "$RENTAL_LOG" ] && [ -n "$PAYMENT_LOG" ]; then
@@ -149,14 +149,14 @@ echo ""
 if [ -z "$RENTAL_LOG" ]; then
     log_error "Rental CSV load message not found after ${MAX_INIT_WAIT} seconds"
     log_warning "Recent logs:"
-    docker-compose logs --tail=30
+    docker compose logs --tail=30
     exit 1
 fi
 
 if [ -z "$PAYMENT_LOG" ]; then
     log_error "Payment CSV load message not found after ${MAX_INIT_WAIT} seconds"
     log_warning "Recent logs:"
-    docker-compose logs --tail=30
+    docker compose logs --tail=30
     exit 1
 fi
 
@@ -249,7 +249,7 @@ else
     echo -e "  ${BLUE}docker exec -it ${CONTAINER_NAME} psql -U bb_admin -d bluebox${NC}"
     echo ""
     log_info "To stop later:"
-    echo -e "  ${BLUE}docker-compose down -v${NC}"
+    echo -e "  ${BLUE}docker compose down -v${NC}"
 fi
 
 echo ""

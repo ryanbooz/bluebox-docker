@@ -4,16 +4,16 @@
 # A sample PostgreSQL database with realistic, continuously-updating data
 #
 # Quick start:
-#   docker-compose up -d
+#   docker compose up -d
 #
 # Use a different PostgreSQL version:
-#   PG_VERSION=16 docker-compose up -d
+#   PG_VERSION=16 docker compose up -d
 #
 # Use a different port:
-#   PG_PORT=5433 docker-compose up -d
+#   PG_PORT=5433 docker compose up -d
 #
 # Combine options:
-#   PG_VERSION=16 PG_PORT=5433 docker-compose up -d
+#   PG_VERSION=16 PG_PORT=5433 docker compose up -d
 #
 # Connections:
 #   Admin:  psql -h localhost -p <port> -U bb_admin -d bluebox  (password: admin_password)
@@ -24,7 +24,7 @@ services:
   postgres:
     image: ${BLUEBOX_IMAGE:-ghcr.io/ryanbooz/bluebox-postgres}:${PG_VERSION:-18}
     # Default pulls from ghcr.io. To use a local build:
-    #   BLUEBOX_IMAGE=bluebox docker-compose up -d
+    #   BLUEBOX_IMAGE=bluebox docker compose up -d
     container_name: bluebox-${PG_VERSION:-18}
     environment:
       # Superuser (for pg_cron, emergencies only)
@@ -34,7 +34,7 @@ services:
       # These are created by init scripts:
       # bb_admin / admin_password  - schema owner, DDL
       # bb_app / app_password      - application queries, DML
-    shm_size: '1gb'
+    shm_size: "1gb"
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
