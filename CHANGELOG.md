@@ -5,7 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.1] - 2026-03-17
+
+### Changed
+- minor improvements in `generate-dump.sh` and `test-build.sh`
+- updated `generate_rental_history` procedure to improve the speed of 
+  data generation. This particularly helps the initial startup of a new
+  Docker container when the included data is more than a few weeks old
+- Fixed overlooked conversion of old sequence columns to IDENTITY columns
+  in `inventory` and `payment`
+- Updated films to current commit date and generated rental data up to commit date
 
 ## [1.1.0] - 2026-02-18
 

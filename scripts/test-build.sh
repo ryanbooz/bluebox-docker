@@ -113,6 +113,7 @@ RENTAL_LOG=""
 PAYMENT_LOG=""
 
 SEEN_SCRIPTS=""
+MID_LINE=0
 while [ $INIT_SECONDS_WAITED -lt $MAX_INIT_WAIT ]; do
     # Show init script progress from container logs
     for script in $(docker logs "$CONTAINER_NAME" 2>&1 \
@@ -122,8 +123,10 @@ while [ $INIT_SECONDS_WAITED -lt $MAX_INIT_WAIT ]; do
         case "$SEEN_SCRIPTS" in
             *"|${script}|"*) ;;  # already shown
             *)
+                [ $MID_LINE -eq 1 ] && echo "" && MID_LINE=0
                 SEEN_SCRIPTS="${SEEN_SCRIPTS}|${script}|"
-                log_info "  Running ${script}"
+                echo -en "${BLUE}ℹ ${NC}  Running ${script} "
+                MID_LINE=1
                 ;;
         esac
     done
@@ -134,6 +137,7 @@ while [ $INIT_SECONDS_WAITED -lt $MAX_INIT_WAIT ]; do
 
     # If both found, we're done!
     if [ -n "$RENTAL_LOG" ] && [ -n "$PAYMENT_LOG" ]; then
+        [ $MID_LINE -eq 1 ] && echo ""
         log_success "Initialization complete (took ${INIT_SECONDS_WAITED}s)"
         break
     fi
@@ -143,7 +147,7 @@ while [ $INIT_SECONDS_WAITED -lt $MAX_INIT_WAIT ]; do
     INIT_SECONDS_WAITED=$((INIT_SECONDS_WAITED + 3))
 done
 
-echo ""
+[ $MID_LINE -eq 1 ] && echo ""
 
 # Verify we found both messages
 if [ -z "$RENTAL_LOG" ]; then
