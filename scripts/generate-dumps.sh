@@ -20,7 +20,7 @@ CUTOFF_DATE=$(date -d "15 months ago" +%Y-%m-%d 2>/dev/null || \
 # Helper: prepend database connection and fix PG 17+ compatibility
 # Used for pg_dump data files that need \c and transaction_timeout patched
 fix_dump() {
-    printf '%s\n\n' '\c bluebox bluebox_admin'
+    printf '%s\n\n' '\c bluebox bb_admin'
     awk '{
         if ($0 == "SET transaction_timeout = 0;") {
             print "-- transaction_timeout is a PG 17+ parameter and not necessary for init scripts"
@@ -31,12 +31,23 @@ fix_dump() {
     }'
 }
 
+BACKUP_DIR="${OUTPUT_DIR}_backup_$(date +%Y%m%d_%H%M%S)"
+
 echo "=== Bluebox Data Dump Generator ==="
 echo "Output directory: $OUTPUT_DIR"
 echo "Rental/payment cutoff: $CUTOFF_DATE (data newer than this)"
 echo ""
 
 mkdir -p "$OUTPUT_DIR"
+
+# Backup existing init files if any exist
+if ls "$OUTPUT_DIR"/*.sql "$OUTPUT_DIR"/*.gz "$OUTPUT_DIR"/*.csv.gz 2>/dev/null | grep -q .; then
+    echo "Backing up existing init files to: $BACKUP_DIR"
+    mkdir -p "$BACKUP_DIR"
+    cp "$OUTPUT_DIR"/*.sql "$OUTPUT_DIR"/*.gz "$OUTPUT_DIR"/*.csv.gz "$BACKUP_DIR/" 2>/dev/null || true
+    echo "  ✓ Backup created"
+    echo ""
+fi
 
 # 03 - Schema (structure only, no privileges/ownership)
 echo "Dumping schema..."
