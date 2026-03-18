@@ -230,6 +230,41 @@ else
 fi
 echo ""
 
+# Step 8: Test data generation functions
+log_info "Step 8: Testing rental history generation (1 day)..."
+
+LAST_RENTAL=$(docker exec ${CONTAINER_NAME} psql -U bb_admin -d bluebox -tAc \
+    "SELECT (max(lower(rental_period)) + interval '1 day')::date FROM bluebox.rental;" 2>/dev/null || echo "")
+
+if [ -z "$LAST_RENTAL" ]; then
+    log_error "Could not determine last rental date"
+    exit 1
+fi
+
+log_info "  Generating rentals for ${LAST_RENTAL}..."
+GEN_RESULT=$(docker exec ${CONTAINER_NAME} psql -U postgres -d bluebox -tAc \
+    "CALL bluebox.generate_rental_history(
+        p_start_date := '${LAST_RENTAL}'::date,
+        p_end_date   := '${LAST_RENTAL}'::date,
+        p_print_debug := false
+    );" 2>&1)
+
+if echo "$GEN_RESULT" | grep -qi "error\|duplicate\|violates"; then
+    log_error "generate_rental_history failed: ${GEN_RESULT}"
+    exit 1
+fi
+
+NEW_RENTAL_COUNT=$(docker exec ${CONTAINER_NAME} psql -U bb_admin -d bluebox -tAc \
+    "SELECT count(*) FROM bluebox.rental;" 2>/dev/null || echo "0")
+
+if [ "$NEW_RENTAL_COUNT" -gt "$DB_RENTAL_COUNT" ]; then
+    log_success "Rental generation OK: ${DB_RENTAL_COUNT} → ${NEW_RENTAL_COUNT} records"
+else
+    log_error "No new rentals generated (count unchanged at ${DB_RENTAL_COUNT})"
+    exit 1
+fi
+echo ""
+
 # Summary
 echo ""
 log_success "=== Test Summary ==="
