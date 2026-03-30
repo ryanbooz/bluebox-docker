@@ -7,7 +7,7 @@ FROM debian:bookworm-slim AS builder
 
 # Build arguments
 ARG PG_BRANCH=master
-ARG POSTGIS_VERSION=3.5.0
+ARG POSTGIS_VERSION=3.6.2
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -71,10 +71,9 @@ RUN ./configure \
 WORKDIR /build/postgresql-src/contrib
 RUN make -j$(nproc) && make install
 
-# Build PostGIS from master branch (for PostgreSQL master compatibility)
-# Release versions aren't compatible with PG 19 yet, but master might be
+# Build PostGIS from stable release tag
 WORKDIR /build
-RUN git clone --depth 1 --branch master https://git.osgeo.org/gitea/postgis/postgis.git postgis-master
+RUN git clone --depth 1 --branch ${POSTGIS_VERSION} https://git.osgeo.org/gitea/postgis/postgis.git postgis-master
 WORKDIR /build/postgis-master
 RUN ./autogen.sh \
     && ./configure --with-pgconfig=/usr/local/pgsql/bin/pg_config \

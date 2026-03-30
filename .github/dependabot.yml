@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # Track base image updates in Dockerfiles
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+
+  # Track GitHub Actions version updates
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5

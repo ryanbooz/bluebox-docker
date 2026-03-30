@@ -24,6 +24,10 @@ ENV PG_UNIX_SOCKET_DIR=${PG_UNIX_SOCKET_DIR:-"/var/run/postgresql"}
 ARG PG_SERVER_PORT
 ENV PG_SERVER_PORT=${PG_SERVER_PORT:-5432}
 
+# Manually pinned extensions (Dependabot does not track git clone versions)
+# Verify these when cutting a release:
+#   pgvector:  https://github.com/pgvector/pgvector/releases
+#   pg_cron:   https://github.com/citusdata/pg_cron/releases   (PG 14/15 only; PG 16+ uses apt)
 ARG LOGERRORS_VERSION
 ENV LOGERRORS_VERSION=${LOGERRORS_VERSION:-2.1.3}
 
