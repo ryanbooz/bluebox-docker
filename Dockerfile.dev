@@ -6,7 +6,10 @@
 FROM debian:bookworm-slim AS builder
 
 # Build arguments
-ARG PG_BRANCH=master
+# Pin PG to last commit before fba4233c ("Reduce header inclusions via
+# execnodes.h", 2026-03-16) which broke PostGIS compilation.
+# Update this once PostGIS releases a version compatible with current master.
+ARG PG_COMMIT=57b5543bb8517c15e3179e5ed2493edbb708457f
 ARG POSTGIS_VERSION=3.6.2
 
 # Install build dependencies
@@ -44,9 +47,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     protobuf-c-compiler \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone and build PostgreSQL from source
+# Clone and build PostgreSQL from source (pinned commit)
 WORKDIR /build
-RUN git clone --depth 1 --branch ${PG_BRANCH} https://git.postgresql.org/git/postgresql.git postgresql-src
+RUN git init postgresql-src \
+    && cd postgresql-src \
+    && git remote add origin https://git.postgresql.org/git/postgresql.git \
+    && git fetch --depth 1 origin ${PG_COMMIT} \
+    && git checkout FETCH_HEAD
 
 WORKDIR /build/postgresql-src
 
@@ -75,12 +82,7 @@ RUN make -j$(nproc) && make install
 WORKDIR /build
 RUN git clone --depth 1 --branch ${POSTGIS_VERSION} https://git.osgeo.org/gitea/postgis/postgis.git postgis-master
 WORKDIR /build/postgis-master
-# Patch: PostGIS missing <limits.h> — exposed by PG commit fba4233c
-# ("Reduce header inclusions via execnodes.h") which broke the
-# transitive include chain that provided INT_MIN/INT_MAX.
-# Remove this once PostGIS releases a fix (check gserialized_typmod.c)
-RUN sed -i '1i #include <limits.h>' postgis/gserialized_typmod.c \
-    && ./autogen.sh \
+RUN ./autogen.sh \
     && ./configure --with-pgconfig=/usr/local/pgsql/bin/pg_config \
     && make -j$(nproc) \
     && make install
