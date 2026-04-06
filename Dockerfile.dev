@@ -75,7 +75,12 @@ RUN make -j$(nproc) && make install
 WORKDIR /build
 RUN git clone --depth 1 --branch ${POSTGIS_VERSION} https://git.osgeo.org/gitea/postgis/postgis.git postgis-master
 WORKDIR /build/postgis-master
-RUN ./autogen.sh \
+# Patch: PostGIS missing <limits.h> — exposed by PG commit fba4233c
+# ("Reduce header inclusions via execnodes.h") which broke the
+# transitive include chain that provided INT_MIN/INT_MAX.
+# Remove this once PostGIS releases a fix (check gserialized_typmod.c)
+RUN sed -i '1i #include <limits.h>' postgis/gserialized_typmod.c \
+    && ./autogen.sh \
     && ./configure --with-pgconfig=/usr/local/pgsql/bin/pg_config \
     && make -j$(nproc) \
     && make install
