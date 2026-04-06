@@ -6,11 +6,7 @@
 FROM debian:bookworm-slim AS builder
 
 # Build arguments
-# Pin PG to last commit before fba4233c ("Reduce header inclusions via
-# execnodes.h", 2026-03-16) which broke PostGIS compilation.
-# Update this once PostGIS releases a version compatible with current master.
-ARG PG_COMMIT=57b5543bb8517c15e3179e5ed2493edbb708457f
-ARG POSTGIS_VERSION=3.6.2
+ARG PG_BRANCH=master
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -47,13 +43,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     protobuf-c-compiler \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone and build PostgreSQL from source (pinned commit)
+# Clone and build PostgreSQL from source
 WORKDIR /build
-RUN git init postgresql-src \
-    && cd postgresql-src \
-    && git remote add origin https://git.postgresql.org/git/postgresql.git \
-    && git fetch --depth 1 origin ${PG_COMMIT} \
-    && git checkout FETCH_HEAD
+RUN git clone --depth 1 --branch ${PG_BRANCH} https://git.postgresql.org/git/postgresql.git postgresql-src
 
 WORKDIR /build/postgresql-src
 
@@ -78,9 +70,9 @@ RUN ./configure \
 WORKDIR /build/postgresql-src/contrib
 RUN make -j$(nproc) && make install
 
-# Build PostGIS from stable release tag
+# Build PostGIS from master (tracks PG master compatibility)
 WORKDIR /build
-RUN git clone --depth 1 --branch ${POSTGIS_VERSION} https://git.osgeo.org/gitea/postgis/postgis.git postgis-master
+RUN git clone --depth 1 --branch master https://git.osgeo.org/gitea/postgis/postgis.git postgis-master
 WORKDIR /build/postgis-master
 RUN ./autogen.sh \
     && ./configure --with-pgconfig=/usr/local/pgsql/bin/pg_config \
