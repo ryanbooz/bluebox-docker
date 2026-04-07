@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2026-04-06
+
+### Changed
+- `docker-compose.yaml`: container name and volume name are now configurable via
+  `BLUEBOX_CONTAINER_NAME` and `BLUEBOX_VOLUME_NAME` env vars, preventing
+  collisions between test builds and long-running instances
+- `test-build.sh`: uses isolated Compose project name, container name, and volume
+  so test builds no longer interfere with running containers
+- `test-build.sh`: improved init progress display (dots on same line as script name)
+- `generate-dumps.sh`: backs up existing init files before overwriting
+- Added Dependabot configuration for Docker base images and GitHub Actions
+
+### Fixed
+- 19-dev image: switched PostGIS back to master branch for PG 19 compatibility
+  (stable PostGIS releases don't yet support PG 19-dev header changes)
+- 19-dev image: disabled pg_cron (does not compile against PG 19-dev due to
+  C23 typeof changes in c.h); cron-based data generation is unavailable on
+  the dev image until pg_cron adds PG 19 support
+
+## [1.1.2] - 2026-03-17
+
+### Fixed
+- Fixed sequence sync issue with identity columns causing duplicate key errors
+  during backfill after initial data load
+
 ## [1.1.1] - 2026-03-17
 
 ### Changed
@@ -62,6 +87,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSV data loading from compressed files during initialization
 - Comprehensive test scripts for build validation
 
-[Unreleased]: https://github.com/ryanbooz/bluebox-docker/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/ryanbooz/bluebox-docker/compare/v1.1.3...HEAD
+[1.1.3]: https://github.com/ryanbooz/bluebox-docker/compare/v1.1.2...v1.1.3
+[1.1.2]: https://github.com/ryanbooz/bluebox-docker/compare/v1.1.1...v1.1.2
+[1.1.1]: https://github.com/ryanbooz/bluebox-docker/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/ryanbooz/bluebox-docker/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/ryanbooz/bluebox-docker/releases/tag/v1.0.0
