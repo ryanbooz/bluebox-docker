@@ -7,7 +7,6 @@ FROM debian:bookworm-slim AS builder
 
 # Build arguments
 ARG PG_BRANCH=master
-ARG POSTGIS_VERSION=3.6.2
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -71,21 +70,22 @@ RUN ./configure \
 WORKDIR /build/postgresql-src/contrib
 RUN make -j$(nproc) && make install
 
-# Build PostGIS from stable release tag
+# Build PostGIS from master (tracks PG master compatibility)
 WORKDIR /build
-RUN git clone --depth 1 --branch ${POSTGIS_VERSION} https://git.osgeo.org/gitea/postgis/postgis.git postgis-master
+RUN git clone --depth 1 --branch master https://git.osgeo.org/gitea/postgis/postgis.git postgis-master
 WORKDIR /build/postgis-master
 RUN ./autogen.sh \
     && ./configure --with-pgconfig=/usr/local/pgsql/bin/pg_config \
     && make -j$(nproc) \
     && make install
 
-# Build pg_cron
-WORKDIR /build
-RUN git clone --depth 1 https://github.com/citusdata/pg_cron.git
-WORKDIR /build/pg_cron
-RUN make PG_CONFIG=/usr/local/pgsql/bin/pg_config \
-    && make install PG_CONFIG=/usr/local/pgsql/bin/pg_config
+# pg_cron: skipped — does not compile against PG 19-dev due to c.h typeof
+# changes (see citusdata/pg_cron). Re-enable once pg_cron supports PG 19.
+# WORKDIR /build
+# RUN git clone --depth 1 https://github.com/citusdata/pg_cron.git
+# WORKDIR /build/pg_cron
+# RUN make PG_CONFIG=/usr/local/pgsql/bin/pg_config \
+#     && make install PG_CONFIG=/usr/local/pgsql/bin/pg_config
 
 # ============================================
 # Runtime image
@@ -141,8 +141,8 @@ RUN groupadd -r postgres --gid=999 \
     && chmod 2777 /var/run/postgresql
 
 # Configure PostgreSQL
-RUN echo "shared_preload_libraries='pg_stat_statements,pg_cron'" >> /usr/local/pgsql/share/postgresql.conf.sample \
-    && echo "cron.database_name='postgres'" >> /usr/local/pgsql/share/postgresql.conf.sample
+# pg_cron omitted — not compatible with PG 19-dev yet
+RUN echo "shared_preload_libraries='pg_stat_statements'" >> /usr/local/pgsql/share/postgresql.conf.sample
 
 # Copy init scripts and entrypoint
 COPY init/ /docker-entrypoint-initdb.d/
