@@ -79,6 +79,8 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
        fi \
     # hll extension
     && apt-get install --no-install-recommends -y postgresql-"${PG_SERVER_VERSION}"-hll \
+    # pg_partman
+    && apt-get install --no-install-recommends -y postgresql-"${PG_SERVER_VERSION}"-partman \
     # pg_cron extension
     && if [ $(echo "$PG_SERVER_VERSION >= 10" | /usr/bin/bc) = "1" ] && [ $(echo "$PG_SERVER_VERSION < 16" | /usr/bin/bc) = "1" ]; then \
          cd /tmp && git clone --branch v${PG_CRON_VERSION} --single-branch https://github.com/citusdata/pg_cron.git \

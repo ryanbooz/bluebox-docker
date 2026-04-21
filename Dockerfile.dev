@@ -79,6 +79,13 @@ RUN ./autogen.sh \
     && make -j$(nproc) \
     && make install
 
+# Build pg_partman
+WORKDIR /build
+RUN git clone --depth 1 https://github.com/pgpartman/pg_partman.git
+WORKDIR /build/pg_partman
+RUN make PG_CONFIG=/usr/local/pgsql/bin/pg_config \
+    && make install PG_CONFIG=/usr/local/pgsql/bin/pg_config
+
 # pg_cron: skipped — does not compile against PG 19-dev due to c.h typeof
 # changes (see citusdata/pg_cron). Re-enable once pg_cron supports PG 19.
 # WORKDIR /build
