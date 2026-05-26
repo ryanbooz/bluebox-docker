@@ -42,7 +42,7 @@ services:
     command:
       - "postgres"
       - "-c"
-      - "shared_preload_libraries=pg_stat_statements,auto_explain"
+      - "shared_preload_libraries=pg_stat_statements,auto_explain,pg_cron"
       - "-c"
       - "cron.database_name=postgres"
       - "-c"

@@ -13,6 +13,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 PG_VERSION=${PG_VERSION:-18}
+PG_PORT=${PG_PORT:-5432}
 CONTAINER_NAME="bluebox-test-${PG_VERSION}"
 COMPOSE_PROJECT="bluebox-test-${PG_VERSION}"
 MAX_WAIT=60  # Maximum seconds to wait for container to be ready
@@ -82,7 +83,7 @@ echo ""
 
 # Step 3: Start the container using the locally built image
 log_info "Step 3: Starting container..."
-BLUEBOX_IMAGE=bluebox BLUEBOX_CONTAINER_NAME="$CONTAINER_NAME" BLUEBOX_VOLUME_NAME="bluebox-test-pgdata-${PG_VERSION}" docker compose -p "$COMPOSE_PROJECT" up -d
+BLUEBOX_IMAGE=bluebox BLUEBOX_CONTAINER_NAME="$CONTAINER_NAME" BLUEBOX_VOLUME_NAME="bluebox-test-pgdata-${PG_VERSION}" PG_PORT="$PG_PORT" docker compose -p "$COMPOSE_PROJECT" up -d
 log_success "Container started"
 echo ""
 
