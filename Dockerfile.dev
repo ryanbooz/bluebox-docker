@@ -41,6 +41,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libjson-c-dev \
     libprotobuf-c-dev \
     protobuf-c-compiler \
+    libgmp-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Clone and build PostgreSQL from source
@@ -122,6 +123,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgdal[0-9]* \
     libjson-c5 \
     libprotobuf-c1 \
+    libgmp10 \
     gosu \
     locales \
     && rm -rf /var/lib/apt/lists/* \
