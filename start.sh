@@ -131,6 +131,30 @@ wait_for_ready() {
     return 1
 }
 
+# The progress loop above only echoes which init scripts ran, not their NOTICE
+# output. If the rental backfill was skipped for a large gap, surface that
+# (and the ready-to-run manual command) so it doesn't get buried in the logs.
+show_backfill_notice() {
+    local container="$1"
+    local logs
+    logs=$(docker logs "$container" 2>&1) || return 0
+
+    if printf '%s\n' "$logs" | grep -q "exceeds the auto-backfill threshold"; then
+        echo
+        echo "----------------------------------------"
+        echo "NOTE: rental data backfill was SKIPPED (gap too large)."
+        echo "The container is healthy, but rentals stop at the image's data date."
+        echo "To fill the gap now, run:"
+        echo
+        printf '%s\n' "$logs" \
+            | grep "docker exec -it <container>" \
+            | tail -n1 \
+            | sed -E 's/^.*NOTICE:[[:space:]]+//' \
+            | sed "s|<container>|${container}|"
+        echo "----------------------------------------"
+    fi
+}
+
 # Pull latest image and start the container
 echo "Checking for image updates..."
 PG_VERSION="$PG_VERSION" docker compose -p "$PROJECT_NAME" pull
@@ -140,6 +164,7 @@ PG_VERSION="$PG_VERSION" PG_PORT="$PG_PORT" docker compose -p "$PROJECT_NAME" up
 
 CONTAINER_NAME="bluebox-${PG_VERSION}"
 wait_for_ready "$CONTAINER_NAME"
+show_backfill_notice "$CONTAINER_NAME"
 
 echo
 echo "========================================"
