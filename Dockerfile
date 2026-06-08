@@ -123,7 +123,15 @@ RUN echo "shared_preload_libraries='pg_stat_statements,auto_explain,pg_cron'" >>
     && echo "max_wal_size='4GB'" >> /usr/share/postgresql/postgresql.conf.sample \
     && echo "min_wal_size='1GB'" >> /usr/share/postgresql/postgresql.conf.sample \
     && echo "checkpoint_timeout='15min'" >> /usr/share/postgresql/postgresql.conf.sample \
-    && echo "checkpoint_completion_target=0.9" >> /usr/share/postgresql/postgresql.conf.sample
+    && echo "checkpoint_completion_target=0.9" >> /usr/share/postgresql/postgresql.conf.sample \
+    # pg_stat_statements: track all (including statements executed inside
+    # functions and procedures). The bluebox workload runs CALL
+    # bluebox.generate_rentals / bluebox.complete_rentals on a tight loop;
+    # with the default track=top only the CALL rows are visible, and the
+    # SELECT/INSERT/UPDATE inside the procedures (the actual tunable work)
+    # are invisible to monitoring and index-recommendation tools.
+    && echo "pg_stat_statements.track='all'" >> /usr/share/postgresql/postgresql.conf.sample \
+    && echo "pg_stat_statements.max=5000" >> /usr/share/postgresql/postgresql.conf.sample
 
 # Copy init scripts
 COPY init/ /docker-entrypoint-initdb.d/
