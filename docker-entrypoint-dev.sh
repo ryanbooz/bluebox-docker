@@ -36,11 +36,19 @@ if [ -z "$(ls -A "$PGDATA")" ]; then
         echo "host    all             all             0.0.0.0/0               scram-sha-256"
     } > "$PGDATA/pg_hba.conf"
     
+    # pg_cron is optional (WITH_PG_CRON build arg)
+    HAVE_CRON=0
+    [ -f /usr/local/pgsql/share/extension/pg_cron.control ] && HAVE_CRON=1
+
     # Configure postgresql.conf
     {
         echo "listen_addresses = '*'"
-        echo "shared_preload_libraries = 'pg_stat_statements'"
-        # pg_cron omitted — not compatible with PG 19-dev yet
+        if [ "$HAVE_CRON" = 1 ]; then
+            echo "shared_preload_libraries = 'pg_stat_statements,pg_cron'"
+            echo "cron.database_name = 'postgres'"
+        else
+            echo "shared_preload_libraries = 'pg_stat_statements'"
+        fi
     } >> "$PGDATA/postgresql.conf"
     
     # Start postgres temporarily for init scripts
@@ -48,9 +56,9 @@ if [ -z "$(ls -A "$PGDATA")" ]; then
     
     # Run init scripts
     for f in /docker-entrypoint-initdb.d/*; do
-        # Skip cron setup — pg_cron not available on PG 19-dev
+        # Skip cron setup when pg_cron isn't installed
         case "$(basename "$f")" in
-            *cron*) echo "Skipping $f (pg_cron not available)"; continue ;;
+            *cron*) if [ "$HAVE_CRON" != 1 ]; then echo "Skipping $f (pg_cron not available)"; continue; fi ;;
         esac
 
         case "$f" in

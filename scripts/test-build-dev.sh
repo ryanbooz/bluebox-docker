@@ -12,8 +12,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-IMAGE_TAG="bluebox-19-dev:latest"
-CONTAINER_NAME="bluebox-19-dev"
+IMAGE_TAG="bluebox-20-dev:latest"
+CONTAINER_NAME="bluebox-20-dev"
 MAX_WAIT=60
 MAX_INIT_WAIT=120  # Dev builds may take longer
 
@@ -47,7 +47,7 @@ trap 'log_error "Test failed! Cleaning up..."; cleanup; exit 1' ERR
 # Main test flow
 echo ""
 log_warning "=== Bluebox Docker DEV Build Test ==="
-log_warning "Building PostgreSQL from master branch (PG 19-dev)"
+log_warning "Building PostgreSQL from master branch (PG 20-dev)"
 log_warning "This will take 10-20 minutes on first build!"
 echo ""
 
@@ -59,12 +59,14 @@ echo ""
 
 # Step 2: Build the DEV image
 log_info "Step 2: Building DEV Docker image..."
-log_info "Compiling PostgreSQL from source (master branch)..."
+PG_BRANCH="${PG_BRANCH:-master}"
+log_info "Compiling PostgreSQL from source (${PG_BRANCH})..."
 log_info "This takes 10-20 minutes - be patient!"
 echo ""
 
 docker build \
     -f Dockerfile.dev \
+    --build-arg PG_BRANCH=${PG_BRANCH} \
     -t ${IMAGE_TAG} \
     . 2>&1 | tee /tmp/bluebox-dev-build.log
 
@@ -89,7 +91,7 @@ docker run -d \
     --name ${CONTAINER_NAME} \
     -e POSTGRES_PASSWORD=password \
     -p 5432:5432 \
-    -v bluebox-pgdata-19-dev:/var/lib/postgresql/data \
+    -v bluebox-pgdata-20-dev:/var/lib/postgresql/data \
     ${IMAGE_TAG} \
     postgres \
     -c shared_preload_libraries='pg_stat_statements,pg_cron' \
@@ -236,7 +238,7 @@ echo ""
 # Summary
 echo ""
 log_success "=== DEV Build Test Summary ==="
-echo -e "  PostgreSQL Version: ${GREEN}19-dev (master)${NC}"
+echo -e "  PostgreSQL Version: ${GREEN}20-dev (master)${NC}"
 echo -e "  Container Name:     ${GREEN}${CONTAINER_NAME}${NC}"
 echo -e "  Rentals Loaded:     ${GREEN}${DB_RENTAL_COUNT}${NC}"
 echo -e "  Payments Loaded:    ${GREEN}${DB_PAYMENT_COUNT}${NC}"
@@ -251,7 +253,7 @@ echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     cleanup
     log_info "Container stopped and removed"
-    log_warning "To remove the dev volume: docker volume rm bluebox-pgdata-19-dev"
+    log_warning "To remove the dev volume: docker volume rm bluebox-pgdata-20-dev"
 else
     log_info "Container still running. Connect with:"
     echo -e "  ${BLUE}docker exec -it ${CONTAINER_NAME} psql -U bb_admin -d bluebox${NC}"

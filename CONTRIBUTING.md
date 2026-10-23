@@ -55,7 +55,7 @@ To test a specific PostgreSQL version:
 PG_VERSION=17 ./scripts/test-build.sh
 ```
 
-To test the development image (PG 19 from source):
+To test the development image (PG 20-dev from source):
 
 ```bash
 ./scripts/test-build-dev.sh
@@ -89,6 +89,6 @@ This uses `docker-compose.dev.yaml` as an override on top of the main `docker-co
 
 The GitHub Actions workflow (`.github/workflows/build-and-push.yml`) handles:
 - Building images for PG 14, 15, 16, 17, and 18 on push to `main`
-- Building the PG 19-dev image weekly from the PostgreSQL master branch
+- Building the PG 20-dev image weekly from the PostgreSQL master branch
 - Multi-architecture builds (amd64 + arm64)
 - Publishing to `ghcr.io/ryanbooz/bluebox-postgres`

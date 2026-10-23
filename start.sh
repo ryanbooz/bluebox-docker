@@ -15,13 +15,13 @@ echo "========================================"
 echo
 
 # Prompt for Postgres version
-echo "Available versions: 14, 15, 16, 17, 18, 19-dev"
+echo "Available versions: 14, 15, 16, 17, 18, 19-rc1, 20-dev"
 read -p "Postgres version [${DEFAULT_PG_VERSION}]: " PG_VERSION
 PG_VERSION=${PG_VERSION:-$DEFAULT_PG_VERSION}
 
 # Validate version
-if [[ ! "$PG_VERSION" =~ ^(14|15|16|17|18|19-dev)$ ]]; then
-    echo "Error: Unsupported Postgres version. Choose 14, 15, 16, 17, 18, or 19-dev."
+if [[ ! "$PG_VERSION" =~ ^(14|15|16|17|18|19-rc1|20-dev)$ ]]; then
+    echo "Error: Unsupported Postgres version. Choose 14, 15, 16, 17, 18, 19-rc1, or 20-dev."
     exit 1
 fi
 

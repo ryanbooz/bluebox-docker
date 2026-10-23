@@ -1,5 +1,5 @@
 # Bluebox PostgreSQL Development Image
-# Builds PostgreSQL from the master branch for testing upcoming features
+# Builds PostgreSQL from source (PG_BRANCH: master, a release branch, or a tag)
 #
 # WARNING: This is for development/testing only. Not for production use.
 
@@ -7,6 +7,8 @@ FROM debian:bookworm-slim AS builder
 
 # Build arguments
 ARG PG_BRANCH=master
+ARG PG_MAJOR=20
+ARG WITH_PG_CRON=1
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -87,22 +89,26 @@ WORKDIR /build/pg_partman
 RUN make PG_CONFIG=/usr/local/pgsql/bin/pg_config \
     && make install PG_CONFIG=/usr/local/pgsql/bin/pg_config
 
-# pg_cron: skipped — does not compile against PG 19-dev due to c.h typeof
-# changes (see citusdata/pg_cron). Re-enable once pg_cron supports PG 19.
-# WORKDIR /build
-# RUN git clone --depth 1 https://github.com/citusdata/pg_cron.git
-# WORKDIR /build/pg_cron
-# RUN make PG_CONFIG=/usr/local/pgsql/bin/pg_config \
-#     && make install PG_CONFIG=/usr/local/pgsql/bin/pg_config
+# Build pg_cron (set WITH_PG_CRON=0 if it doesn't compile against the target branch)
+WORKDIR /build
+RUN if [ "${WITH_PG_CRON}" = "1" ]; then \
+        git clone --depth 1 https://github.com/citusdata/pg_cron.git \
+        && cd pg_cron \
+        && make PG_CONFIG=/usr/local/pgsql/bin/pg_config \
+        && make install PG_CONFIG=/usr/local/pgsql/bin/pg_config; \
+    fi
 
 # ============================================
 # Runtime image
 # ============================================
 FROM debian:bookworm-slim
 
+ARG PG_BRANCH=master
+ARG PG_MAJOR=20
+
 LABEL maintainer="Ryan Booz <ryan@softwareandbooz.com>"
 LABEL org.opencontainers.image.source="https://github.com/ryanbooz/bluebox-docker"
-LABEL org.opencontainers.image.description="Bluebox PostgreSQL Development Image (built from master)"
+LABEL org.opencontainers.image.description="Bluebox PostgreSQL Development Image (built from source: ${PG_BRANCH})"
 
 # Install runtime dependencies
 # Using package name patterns to automatically get latest available versions
@@ -137,7 +143,7 @@ COPY --from=builder /usr/local/pgsql /usr/local/pgsql
 # Setup paths
 ENV PATH=/usr/local/pgsql/bin:$PATH
 ENV PGDATA=/var/lib/postgresql/data
-ENV PG_MAJOR=19
+ENV PG_MAJOR=${PG_MAJOR}
 
 # Create postgres user and directories
 RUN groupadd -r postgres --gid=999 \
@@ -150,7 +156,7 @@ RUN groupadd -r postgres --gid=999 \
     && chmod 2777 /var/run/postgresql
 
 # Configure PostgreSQL
-# pg_cron omitted — not compatible with PG 19-dev yet
+# pg_cron is added to shared_preload_libraries by the entrypoint when installed
 RUN echo "shared_preload_libraries='pg_stat_statements'" >> /usr/local/pgsql/share/postgresql.conf.sample
 
 # Copy init scripts and entrypoint

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Renamed the `19-dev` image to `20-dev`: `master` is now PG 20devel since
+  `REL_19_STABLE` branched. The `dev` tag follows `20-dev`.
+- Added `19-rc1` (and moving alias `19-rc`), built from the `REL_19_RC1` tag.
+  Bump the tag in the workflow for RC2/GA.
+- `Dockerfile.dev` takes `PG_BRANCH` and `PG_MAJOR` build args.
+- Stable `Dockerfile`: clear full apt lists and skip suggested packages in the builder.
+
 ## [1.1.3] - 2026-04-06
 
 ### Changed
