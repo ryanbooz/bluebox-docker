@@ -1,6 +1,6 @@
 # Build and push Bluebox PostgreSQL images
 # - Multiple PostgreSQL versions (14, 15, 16, 17, 18)
-# - Development version (19-dev from PostgreSQL master branch)
+# - 19-rc1 (pinned REL_19_RC1 tag, built from source) and 20-dev (PostgreSQL master)
 # - Multiple architectures (amd64, arm64)
 name: Build and Push Docker Images
 
@@ -28,7 +28,7 @@ on:
   workflow_dispatch:
     inputs:
       pg_version:
-        description: 'PostgreSQL version to build (or "all" or "dev")'
+        description: 'PostgreSQL version to build (or "all" or "all-with-dev")'
         required: false
         default: 'all'
         type: choice
@@ -40,7 +40,8 @@ on:
           - '16'
           - '15'
           - '14'
-          - '19-dev'
+          - '19-rc1'
+          - '20-dev'
 
 env:
   REGISTRY: ghcr.io
@@ -52,28 +53,36 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       versions: ${{ steps.set-matrix.outputs.versions }}
+      dev_versions: ${{ steps.set-matrix.outputs.dev_versions }}
     steps:
       - name: Set version matrix
         id: set-matrix
         run: |
           INPUT="${{ github.event.inputs.pg_version }}"
+          DEV='[]'
           
           # Scheduled builds only do dev
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
-            echo 'versions=["19-dev"]' >> $GITHUB_OUTPUT
+            echo 'versions=["20-dev"]' >> $GITHUB_OUTPUT
+            DEV='["20-dev"]'
           elif [[ "$INPUT" == "all" ]] || [[ -z "$INPUT" ]]; then
             echo 'versions=["18", "17", "16", "15", "14"]' >> $GITHUB_OUTPUT
           elif [[ "$INPUT" == "all-with-dev" ]]; then
-            echo 'versions=["18", "17", "16", "15", "14", "19-dev"]' >> $GITHUB_OUTPUT
+            echo 'versions=["18", "17", "16", "15", "14", "19-rc1", "20-dev"]' >> $GITHUB_OUTPUT
+            DEV='["19-rc1", "20-dev"]'
           else
             echo 'versions=["'"$INPUT"'"]' >> $GITHUB_OUTPUT
+            if [[ "$INPUT" == "19-rc1" ]] || [[ "$INPUT" == "20-dev" ]]; then
+              DEV='["'"$INPUT"'"]'
+            fi
           fi
+          echo "dev_versions=$DEV" >> $GITHUB_OUTPUT
 
   # Build stable versions (from official postgres base image)
   build-stable:
     needs: matrix-setup
-    # Skip if matrix only contains 19-dev
-    if: needs.matrix-setup.outputs.versions != '["19-dev"]'
+    # Skip if matrix only contains source-built versions
+    if: needs.matrix-setup.outputs.versions != '["20-dev"]' && needs.matrix-setup.outputs.versions != '["19-rc1"]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -84,7 +93,8 @@ jobs:
       matrix:
         pg_version: ${{ fromJson(needs.matrix-setup.outputs.versions) }}
         exclude:
-          - pg_version: "19-dev"
+          - pg_version: "19-rc1"
+          - pg_version: "20-dev"
 
     steps:
       - name: Checkout repository
@@ -134,11 +144,31 @@ jobs:
   # Build development version (from PostgreSQL source)
   build-dev:
     needs: matrix-setup
-    if: contains(toJson(needs.matrix-setup.outputs.versions), '19-dev')
+    if: needs.matrix-setup.outputs.dev_versions != '[]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        dev_version: ${{ fromJson(needs.matrix-setup.outputs.dev_versions) }}
+        include:
+          # 19-rc1 is pinned to a tag; bump the tag and version name for rc2/GA
+          - dev_version: "19-rc1"
+            pg_branch: REL_19_RC1
+            pg_major: "19"
+            tags: |
+              ghcr.io/${{ github.repository_owner }}/bluebox-postgres:19-rc1
+              ghcr.io/${{ github.repository_owner }}/bluebox-postgres:19-rc
+          - dev_version: "20-dev"
+            pg_branch: master
+            pg_major: "20"
+            tags: |
+              ghcr.io/${{ github.repository_owner }}/bluebox-postgres:20-dev
+              ghcr.io/${{ github.repository_owner }}/bluebox-postgres:dev
+              ghcr.io/${{ github.repository_owner }}/bluebox-postgres:20-dev-${{ github.run_number }}
 
     steps:
       - name: Checkout repository
@@ -167,12 +197,12 @@ jobs:
           file: ./Dockerfile.dev
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:19-dev
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:19-dev-${{ github.run_number }}
-          cache-from: type=gha,scope=pg-dev
-          cache-to: type=gha,mode=max,scope=pg-dev
+          tags: ${{ matrix.tags }}
+          build-args: |
+            PG_BRANCH=${{ matrix.pg_branch }}
+            PG_MAJOR=${{ matrix.pg_major }}
+          cache-from: type=gha,scope=pg-${{ matrix.dev_version }}
+          cache-to: type=gha,mode=max,scope=pg-${{ matrix.dev_version }}
 
   # Summary job
   build-summary:
@@ -191,7 +221,8 @@ jobs:
           echo "| 16 | stable | ${{ needs.build-stable.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 15 | stable | ${{ needs.build-stable.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 14 | stable | ${{ needs.build-stable.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 19-dev | development | ${{ needs.build-dev.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 19-rc1 | release candidate | ${{ needs.build-dev.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 20-dev | development | ${{ needs.build-dev.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Available Images" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
@@ -200,6 +231,7 @@ jobs:
           echo "ghcr.io/${{ github.repository_owner }}/bluebox-postgres:16" >> $GITHUB_STEP_SUMMARY
           echo "ghcr.io/${{ github.repository_owner }}/bluebox-postgres:15" >> $GITHUB_STEP_SUMMARY
           echo "ghcr.io/${{ github.repository_owner }}/bluebox-postgres:14" >> $GITHUB_STEP_SUMMARY
-          echo "ghcr.io/${{ github.repository_owner }}/bluebox-postgres:19-dev  # Development (from master)" >> $GITHUB_STEP_SUMMARY
+          echo "ghcr.io/${{ github.repository_owner }}/bluebox-postgres:19-rc1  # Release candidate (REL_19_RC1)" >> $GITHUB_STEP_SUMMARY
+          echo "ghcr.io/${{ github.repository_owner }}/bluebox-postgres:20-dev  # Development (from master)" >> $GITHUB_STEP_SUMMARY
           echo "ghcr.io/${{ github.repository_owner }}/bluebox-postgres:latest  # Same as :18" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

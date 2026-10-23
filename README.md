@@ -8,7 +8,7 @@ A PostgreSQL sample database simulating a video rental kiosk business (think Red
 - **Continuous data generation**: pg_cron jobs create new rentals every 5 minutes
 - **Geographic data**: PostGIS-enabled with store/customer locations
 - **Customer lifecycle**: Churn, reactivation, and status tracking
-- **Multiple PostgreSQL versions**: 14, 15, 16, 17, 18, and 19-dev (built from master)
+- **Multiple PostgreSQL versions**: 14, 15, 16, 17, 18, 19-rc1 (release candidate), and 20-dev (built from master)
 - **Multi-architecture**: AMD64 and ARM64 (native Apple Silicon support)
 - **Pre-loaded extensions**: PostGIS, pg_stat_statements, hypopg, pgvector, TimescaleDB, and more
 
@@ -60,7 +60,7 @@ PG_VERSION=18 PG_PORT=5432 docker compose -p bluebox-pg18 up -d
 PG_VERSION=17 PG_PORT=5433 docker compose -p bluebox-pg17 up -d
 
 # Start the dev version on another port
-PG_VERSION=19-dev PG_PORT=5434 docker compose -p bluebox-pg19-dev up -d
+PG_VERSION=20-dev PG_PORT=5434 docker compose -p bluebox-pg20-dev up -d
 ```
 
 All containers will run independently with their own data volumes.
@@ -74,7 +74,8 @@ All containers will run independently with their own data volumes.
 | `16` | 16.x | Stable | amd64, arm64 |
 | `15` | 15.x | Stable | amd64, arm64 |
 | `14` | 14.x | Stable | amd64, arm64 |
-| `19-dev`, `dev` | master | Development | amd64, arm64 |
+| `19-rc1` | REL_19_RC1 tag | Release candidate (pinned) | amd64, arm64 |
+| `20-dev`, `dev` | master | Development | amd64, arm64 |
 
 Pull directly:
 ```bash
@@ -83,10 +84,10 @@ docker pull ghcr.io/ryanbooz/bluebox-postgres:18
 docker pull ghcr.io/ryanbooz/bluebox-postgres:17
 
 # Development version (built from PostgreSQL master branch)
-docker pull ghcr.io/ryanbooz/bluebox-postgres:19-dev
+docker pull ghcr.io/ryanbooz/bluebox-postgres:20-dev
 ```
 
-> ⚠️ **Note**: The `19-dev` image is built from PostgreSQL's master branch and is for testing upcoming features only. It rebuilds weekly and may contain bugs. Do not use for production.
+> ⚠️ **Note**: The `20-dev` image is built from PostgreSQL's master branch and is for testing upcoming features only. It rebuilds weekly and may contain bugs. Do not use for production.
 
 ## Connection Details
 

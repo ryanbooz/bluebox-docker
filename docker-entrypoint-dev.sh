@@ -40,7 +40,7 @@ if [ -z "$(ls -A "$PGDATA")" ]; then
     {
         echo "listen_addresses = '*'"
         echo "shared_preload_libraries = 'pg_stat_statements'"
-        # pg_cron omitted — not compatible with PG 19-dev yet
+        # pg_cron omitted — not compatible with PG 19+ yet
     } >> "$PGDATA/postgresql.conf"
     
     # Start postgres temporarily for init scripts
@@ -48,7 +48,7 @@ if [ -z "$(ls -A "$PGDATA")" ]; then
     
     # Run init scripts
     for f in /docker-entrypoint-initdb.d/*; do
-        # Skip cron setup — pg_cron not available on PG 19-dev
+        # Skip cron setup — pg_cron not available on PG 19+ dev builds
         case "$(basename "$f")" in
             *cron*) echo "Skipping $f (pg_cron not available)"; continue ;;
         esac
