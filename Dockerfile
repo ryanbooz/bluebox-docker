@@ -37,10 +37,10 @@ ENV PGVECTOR_VERSION=${PGVECTOR_VERSION:-0.8.1}
 ARG PG_CRON_VERSION
 ENV PG_CRON_VERSION=${PG_CRON_VERSION:-1.4.2}
 
-RUN apt-get clean && rm -rf /var/lib/apt/lists/partial \
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* \
     && PG_SERVER_VERSION="$( echo ${PG_SERVER_VERSION} | sed 's/beta.*//' | sed 's/rc.*//' )" \
     && apt-get update -o Acquire::CompressionTypes::Order::=gz \
-    && apt-get install --no-install-recommends -y wget make gcc unzip sudo git \
+    && apt-get install --no-install-recommends  --no-install-suggests -y wget make gcc unzip sudo git \
        curl libc6-dev apt-transport-https ca-certificates pgxnclient bc \
        build-essential libssl-dev krb5-multidev libkrb5-dev lsb-release apt-utils flex \
     && apt-get install --no-install-recommends -y postgresql-server-dev-${PG_SERVER_VERSION} \
