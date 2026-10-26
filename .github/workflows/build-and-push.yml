@@ -59,22 +59,23 @@ jobs:
         id: set-matrix
         run: |
           INPUT="${{ github.event.inputs.pg_version }}"
+          RC='{"version":"19-rc1","branch":"REL_19_RC1","major":"19"}'
+          MASTER='{"version":"20-dev","branch":"master","major":"20"}'
           DEV='[]'
           
           # Scheduled builds only do dev
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
             echo 'versions=["20-dev"]' >> $GITHUB_OUTPUT
-            DEV='["20-dev"]'
+            DEV="[$MASTER]"
           elif [[ "$INPUT" == "all" ]] || [[ -z "$INPUT" ]]; then
             echo 'versions=["18", "17", "16", "15", "14"]' >> $GITHUB_OUTPUT
           elif [[ "$INPUT" == "all-with-dev" ]]; then
             echo 'versions=["18", "17", "16", "15", "14", "19-rc1", "20-dev"]' >> $GITHUB_OUTPUT
-            DEV='["19-rc1", "20-dev"]'
+            DEV="[$RC, $MASTER]"
           else
             echo 'versions=["'"$INPUT"'"]' >> $GITHUB_OUTPUT
-            if [[ "$INPUT" == "19-rc1" ]] || [[ "$INPUT" == "20-dev" ]]; then
-              DEV='["'"$INPUT"'"]'
-            fi
+            if [[ "$INPUT" == "19-rc1" ]]; then DEV="[$RC]"; fi
+            if [[ "$INPUT" == "20-dev" ]]; then DEV="[$MASTER]"; fi
           fi
           echo "dev_versions=$DEV" >> $GITHUB_OUTPUT
 
@@ -153,22 +154,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dev_version: ${{ fromJson(needs.matrix-setup.outputs.dev_versions) }}
-        include:
-          # 19-rc1 is pinned to a tag; bump the tag and version name for rc2/GA
-          - dev_version: "19-rc1"
-            pg_branch: REL_19_RC1
-            pg_major: "19"
-            tags: |
-              ghcr.io/${{ github.repository_owner }}/bluebox-postgres:19-rc1
-              ghcr.io/${{ github.repository_owner }}/bluebox-postgres:19-rc
-          - dev_version: "20-dev"
-            pg_branch: master
-            pg_major: "20"
-            tags: |
-              ghcr.io/${{ github.repository_owner }}/bluebox-postgres:20-dev
-              ghcr.io/${{ github.repository_owner }}/bluebox-postgres:dev
-              ghcr.io/${{ github.repository_owner }}/bluebox-postgres:20-dev-${{ github.run_number }}
+        dev: ${{ fromJson(needs.matrix-setup.outputs.dev_versions) }}
 
     steps:
       - name: Checkout repository
@@ -190,6 +176,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Compute image tags
+        id: tags
+        run: |
+          IMG="ghcr.io/${{ github.repository_owner }}/bluebox-postgres"
+          {
+            echo 'tags<<EOF'
+            if [[ "${{ matrix.dev.version }}" == "19-rc1" ]]; then
+              echo "$IMG:19-rc1"
+              echo "$IMG:19-rc"
+            else
+              echo "$IMG:20-dev"
+              echo "$IMG:dev"
+              echo "$IMG:20-dev-${{ github.run_number }}"
+            fi
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and push dev image
         uses: docker/build-push-action@v7
         with:
@@ -197,12 +200,12 @@ jobs:
           file: ./Dockerfile.dev
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ matrix.tags }}
+          tags: ${{ steps.tags.outputs.tags }}
           build-args: |
-            PG_BRANCH=${{ matrix.pg_branch }}
-            PG_MAJOR=${{ matrix.pg_major }}
-          cache-from: type=gha,scope=pg-${{ matrix.dev_version }}
-          cache-to: type=gha,mode=max,scope=pg-${{ matrix.dev_version }}
+            PG_BRANCH=${{ matrix.dev.branch }}
+            PG_MAJOR=${{ matrix.dev.major }}
+          cache-from: type=gha,scope=pg-${{ matrix.dev.version }}
+          cache-to: type=gha,mode=max,scope=pg-${{ matrix.dev.version }}
 
   # Summary job
   build-summary:
