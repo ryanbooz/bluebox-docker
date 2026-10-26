@@ -48,7 +48,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Clone and build PostgreSQL from source
 WORKDIR /build
-RUN git clone --depth 1 --branch ${PG_BRANCH} https://git.postgresql.org/git/postgresql.git postgresql-src
+# GitHub mirror of git.postgresql.org; the primary host drops connections from CI runners
+RUN for i in 1 2 3; do \
+        git clone --depth 1 --branch ${PG_BRANCH} https://github.com/postgres/postgres.git postgresql-src && break; \
+        rm -rf postgresql-src; sleep 10; \
+    done; test -d postgresql-src/.git
 
 WORKDIR /build/postgresql-src
 
@@ -75,7 +79,10 @@ RUN make -j$(nproc) && make install
 
 # Build PostGIS from master (tracks PG master compatibility)
 WORKDIR /build
-RUN git clone --depth 1 --branch master https://git.osgeo.org/gitea/postgis/postgis.git postgis-master
+RUN for i in 1 2 3; do \
+        git clone --depth 1 --branch master https://git.osgeo.org/gitea/postgis/postgis.git postgis-master && break; \
+        rm -rf postgis-master; sleep 10; \
+    done; test -d postgis-master/.git
 WORKDIR /build/postgis-master
 RUN ./autogen.sh \
     && ./configure --with-pgconfig=/usr/local/pgsql/bin/pg_config \
@@ -135,7 +142,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && localedef -i en_US -c -f UTF-8 -A /usr/share/locale/locale.alias en_US.UTF-8
 
-ENV LANG en_US.utf8
+ENV LANG=en_US.utf8
 
 # Copy PostgreSQL from builder
 COPY --from=builder /usr/local/pgsql /usr/local/pgsql
